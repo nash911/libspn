@@ -144,6 +144,84 @@ class TestMath(unittest.TestCase):
         out = spn.utils.gather_cols(t, [0])
         self.assertIs(out, t)
 
+    def test_gather_columns(self):
+        def test(params, indices, dtype, true_output):
+            with self.subTest(params=params, indices=indices,
+                              dtype=dtype):
+                p1d = tf.constant(params, dtype=dtype)
+                p2d1 = tf.constant(np.array([np.array(params)]), dtype=dtype)
+                p2d2 = tf.constant(np.array([np.array(params),
+                                             np.array(params) * 2,
+                                             np.array(params) * 3]), dtype=dtype)
+
+                op1d = spn.utils.gather_columns_module.gather_columns(p1d, indices)
+                op2d1 = spn.utils.gather_columns_module.gather_columns(p2d1, indices)
+                op2d2 = spn.utils.gather_columns_module.gather_columns(p2d2, indices)
+
+                with tf.Session() as sess:
+                    out1d = sess.run(op1d)
+                    out2d1 = sess.run(op2d1)
+                    out2d2 = sess.run(op2d2)
+
+                np.testing.assert_array_almost_equal(out1d, true_output)
+                self.assertEqual(dtype.as_numpy_dtype, out1d.dtype)
+
+                true_output_2d1 = [np.array(true_output)]
+                true_output_2d2 = [np.array(true_output),
+                                   np.array(true_output) * 2,
+                                   np.array(true_output) * 3]
+
+                np.testing.assert_array_almost_equal(out2d1, true_output_2d1)
+                np.testing.assert_array_almost_equal(out2d2, true_output_2d2)
+                self.assertEqual(dtype.as_numpy_dtype, out2d1.dtype)
+                self.assertEqual(dtype.as_numpy_dtype, out2d2.dtype)
+
+        # Single column input tensor
+        test([1],
+             [0],
+             tf.float32,
+             [1.0])
+        test([1],
+             [0],
+             tf.float64,
+             [1.0])
+
+        # Single index
+        test([1, 2, 3],
+             [1],
+             tf.float32,
+             [2.0])
+        test([1, 2, 3],
+             [1],
+             tf.float64,
+             [2.0])
+
+        # Multiple indices
+        test([1, 2, 3],
+             [2, 1, 0],
+             tf.float32,
+             [3.0, 2.0, 1.0])
+        test([1, 2, 3],
+             [2, 1, 0],
+             tf.float64,
+             [3.0, 2.0, 1.0])
+        test([1, 2, 3],
+             [0, 2],
+             tf.float32,
+             [1.0, 3.0])
+        test([1, 2, 3],
+             [0, 2],
+             tf.float64,
+             [1.0, 3.0])
+
+        # Gathering single column tensor should return that tensor directly
+        t = tf.constant([1])
+        out = spn.utils.gather_cols(t, [0])
+        self.assertIs(out, t)
+        t = tf.constant([[1], [2]])
+        out = spn.utils.gather_cols(t, [0])
+        self.assertIs(out, t)
+
     def test_scatter_cols_errors(self):
         # TODO
         pass

@@ -12,6 +12,7 @@ import math
 import numpy as np
 from libspn import utils
 
+gather_columns_module = tf.load_op_library('/home/nash/Dropbox/KTH/Projects/tensorflow/tensorflow/core/user_ops/gather_columns.so')
 
 class ValueType:
 

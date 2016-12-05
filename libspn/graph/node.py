@@ -674,7 +674,8 @@ class OpNode(Node):
         with tf.op_scope(input_tensors, "gather_input_tensors"):
             return tuple(None if not i or it is None
                          else it if i.indices is None
-                         else utils.gather_cols(it, i.indices)
+                         #else utils.gather_cols(it, i.indices)
+                         else utils.gather_columns_module.gather_columns(it, i.indices)
                          for i, it in
                          zip(self.inputs, input_tensors))
 

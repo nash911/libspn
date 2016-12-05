@@ -8,6 +8,7 @@
 # Import public interface of the library
 
 from .math import gather_cols
+from .math import gather_columns_module
 from .math import scatter_cols
 from .math import ValueType
 from .math import broadcast_value
@@ -30,7 +31,7 @@ from .serialization import str2type, type2str
 
 
 # All
-__all__ = ['scatter_cols', 'gather_cols', 'ValueType',
+__all__ = ['scatter_cols', 'gather_cols', 'gather_columns_module', 'ValueType',
            'broadcast_value', 'normalize_tensor',
            'reduce_log_sum', 'concat_maybe', 'split',
            'StirlingNumber', 'StirlingRatio', 'Stirling',
