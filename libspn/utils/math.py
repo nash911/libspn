@@ -12,6 +12,7 @@ import math
 import numpy as np
 from libspn import utils
 
+scatter_columns_module = tf.load_op_library('/home/nash/Dropbox/KTH/Projects/tensorflow/tensorflow/core/user_ops/scatter_columns.so')
 
 class ValueType:
 

@@ -211,6 +211,69 @@ class TestMath(unittest.TestCase):
              tf.float64,
              [30.0, 10.0, 0.0, 20.0])
 
+    def test_scatter_columns(self):
+        def test(params, indices, num_cols, dtype, true_output):
+            with self.subTest(params=params, indices=indices,
+                              num_cols=num_cols, dtype=dtype):
+                p1d = tf.constant(params, dtype=dtype)
+                p2d1 = tf.constant(np.array([np.array(params)]), dtype=dtype)
+                p2d2 = tf.constant(np.array([np.array(params),
+                                             np.array(params) * 2,
+                                             np.array(params) * 3]), dtype=dtype)
+                op1d = spn.utils.scatter_columns_module.scatter_columns(p1d, indices, num_cols, 0)
+                op2d1 = spn.utils.scatter_columns_module.scatter_columns(p2d1, indices, num_cols, 0)
+                op2d2 = spn.utils.scatter_columns_module.scatter_columns(p2d2, indices, num_cols, 0)
+                with tf.Session() as sess:
+                    out1d = sess.run(op1d)
+                    out2d1 = sess.run(op2d1)
+                    out2d2 = sess.run(op2d2)
+                np.testing.assert_array_almost_equal(out1d, true_output)
+                self.assertEqual(dtype.as_numpy_dtype, out1d.dtype)
+                true_output_2d1 = [np.array(true_output)]
+                true_output_2d2 = [np.array(true_output),
+                                   np.array(true_output) * 2,
+                                   np.array(true_output) * 3]
+                np.testing.assert_array_almost_equal(out2d1, true_output_2d1)
+                np.testing.assert_array_almost_equal(out2d2, true_output_2d2)
+                self.assertEqual(dtype.as_numpy_dtype, out2d1.dtype)
+                self.assertEqual(dtype.as_numpy_dtype, out2d2.dtype)
+
+        # Single column output
+        test([10],
+             [0],
+             1,
+             tf.float32,
+             [10.0])
+        test([10],
+             [0],
+             1,
+             tf.float64,
+             [10.0])
+
+        # Multi-column output, single-column input
+        test([10],
+             [1],
+             4,
+             tf.float32,
+             [0.0, 10.0, 0.0, 0.0])
+        test([10],
+             [0],
+             4,
+             tf.float64,
+             [10.0, 0.0, 0.0, 0.0])
+
+        # Multi-column output, multi-column input
+        test([10, 20, 30],
+             [1, 3, 0],
+             4,
+             tf.float32,
+             [30.0, 10.0, 0.0, 20.0])
+        test([10, 20, 30],
+             [1, 3, 0],
+             4,
+             tf.float64,
+             [30.0, 10.0, 0.0, 20.0])
+
     def test_broadcast_value(self):
         """broadcast_value for various value types"""
 

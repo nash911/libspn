@@ -695,12 +695,19 @@ class OpNode(Node):
             list of Tensor: A list of tensors containing scattered values.
         """
         with tf.op_scope([t[0] for t in tuples], "scatter_to_input_tensors"):
+            # return tuple(None if not i or t is None
+            #              else t[0] if i.indices is None
+            #              else utils.scatter_cols(
+            #                  t[0], i.indices,
+            #                  int(t[1].get_shape()
+            #                      [0 if t[1].get_shape().ndims == 1 else 1]))
+            #              for i, t in zip(self.inputs, tuples))
             return tuple(None if not i or t is None
                          else t[0] if i.indices is None
-                         else utils.scatter_cols(
+                         else utils.scatter_columns_module.scatter_columns(
                              t[0], i.indices,
                              int(t[1].get_shape()
-                                 [0 if t[1].get_shape().ndims == 1 else 1]))
+                                 [0 if t[1].get_shape().ndims == 1 else 1]), 0)
                          for i, t in zip(self.inputs, tuples))
 
     @abstractmethod
