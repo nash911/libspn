@@ -29,6 +29,11 @@ from .serialization import register_serializable
 from .serialization import json_dump, json_load
 from .serialization import str2type, type2str
 
+from tensorflow.python.framework import ops
+from tensorflow.python.framework import common_shapes
+
+ops.RegisterShape("GatherColumns")(common_shapes.call_cpp_shape_fn)
+
 
 # All
 __all__ = ['scatter_cols', 'gather_cols', 'gather_columns_module', 'ValueType',
