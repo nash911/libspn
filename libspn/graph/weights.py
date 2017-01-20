@@ -19,6 +19,7 @@ class Weights(ParamNode):
         init_value: Initial value of the weights. For possible values, see
                     :meth:`~libspn.utils.broadcast_value`.
         num_weights (int): Number of weights in the vector.
+        num_sums (int): Number of sum nodes the weight vector/matrix represents.
         name (str): Name of the node.
 
     Attributes:
@@ -26,17 +27,23 @@ class Weights(ParamNode):
     """
 
     def __init__(self, init_value=1, num_weights=1,
-                 trainable=True, name="Weights"):
+                 num_sums=1, trainable=True, name="Weights"):
         if not isinstance(num_weights, int) or num_weights < 1:
             raise ValueError("num_weights must be a positive integer")
+
+        if not isinstance(num_sums, int) or num_sums < 1:
+            raise ValueError("num_sums must be a positive integer")
+
         self._init_value = init_value
         self._num_weights = num_weights
+        self._num_sums = num_sums
         self._trainable = trainable
         super().__init__(name)
 
     def serialize(self):
         data = super().serialize()
         data['num_weights'] = self._num_weights
+        data['num_sums'] = self._num_sums
         data['trainable'] = self._trainable
         # If we're in session and the variable is set, get its value,
         # otherwise get init value
@@ -51,6 +58,7 @@ class Weights(ParamNode):
     def deserialize(self, data):
         self._init_value = data['value']
         self._num_weights = data['num_weights']
+        self._num_sums = data['num_sums']
         self._trainable = data['trainable']
         super().deserialize(data)
 
@@ -60,8 +68,13 @@ class Weights(ParamNode):
         return self._num_weights
 
     @property
+    def num_sums(self):
+        """int: Number of sum nodes the weights vector/matrix represents."""
+        return self._num_sums
+
+    @property
     def variable(self):
-        """Variable: The TF variable of shape ``[num_weights]`` holding the
+        """Variable: The TF variable of shape ``[num_sums, num_weights]`` holding the
         weights."""
         return self._variable
 
@@ -88,6 +101,19 @@ class Weights(ParamNode):
         value = utils.normalize_tensor(value)
         return tf.assign(self._variable, value)
 
+    # def _create(self):
+    #     """Creates a TF variable holding the vector of the SPN weights.
+    #
+    #     Returns:
+    #         Variable: A TF variable of shape ``[num_weights]``.
+    #     """
+    #     init_val = utils.broadcast_value(self._init_value,
+    #                                      (self._num_weights,),
+    #                                      dtype=conf.dtype)
+    #     init_val = utils.normalize_tensor_2D(init_val, self._num_weights, self._num_sums)
+    #     self._variable = tf.Variable(init_val, dtype=conf.dtype,
+    #                                  collections=['spn_weights'])
+
     def _create(self):
         """Creates a TF variable holding the vector of the SPN weights.
 
@@ -97,8 +123,15 @@ class Weights(ParamNode):
         init_val = utils.broadcast_value(self._init_value,
                                          (self._num_weights,),
                                          dtype=conf.dtype)
-        init_val = utils.normalize_tensor(init_val)
-        self._variable = tf.Variable(init_val, dtype=conf.dtype,
+        norm_val = utils.normalize_tensor_2D(init_val, self._num_weights, self._num_sums)
+        I_val = tf.zeros([0, (self._num_sums * self._num_weights)], dtype=conf.dtype)
+
+        for i in range(0, self._num_sums):
+            norm_val_Slice = tf.slice(norm_val, [i, 0], [1, -1])
+            norm_val_pad = tf.pad(norm_val_Slice, [[0, 0], [(i*self._num_weights), (self._num_weights * (self._num_sums-i-1))]])
+            I_val = tf.concat(0, [I_val, norm_val_pad])
+
+        self._variable = tf.Variable(I_val, dtype=conf.dtype,
                                      collections=['spn_weights'])
 
     def _compute_out_size(self):

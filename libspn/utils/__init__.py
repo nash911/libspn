@@ -12,6 +12,7 @@ from .math import scatter_cols
 from .math import ValueType
 from .math import broadcast_value
 from .math import normalize_tensor
+from .math import normalize_tensor_2D
 from .math import reduce_log_sum
 from .math import concat_maybe
 from .math import split_maybe
@@ -31,7 +32,7 @@ from .serialization import str2type, type2str
 
 # All
 __all__ = ['scatter_cols', 'gather_cols', 'ValueType',
-           'broadcast_value', 'normalize_tensor',
+           'broadcast_value', 'normalize_tensor', 'normalize_tensor_2D',
            'reduce_log_sum', 'concat_maybe', 'split_maybe',
            'StirlingNumber', 'StirlingRatio', 'Stirling',
            'random_partition', 'all_partitions',

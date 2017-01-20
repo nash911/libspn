@@ -259,6 +259,28 @@ def normalize_tensor(tensor, name=None):
         return tf.truediv(tensor, s)
 
 
+def normalize_tensor_2D(tensor, num_weights=1, num_sums=1, name=None):
+    """Reshape weight vector to a 2D tensor, and normalize such each row sums to 1.
+
+    Args:
+        tensor (Tensor): Input tensor.
+
+    Returns:
+        Tensor: Normalized tensor.
+    """
+    with tf.name_scope(name, "normalize_tensor_2D", [tensor]):
+        tensor = tf.convert_to_tensor(tensor)
+        tensor = tf.reshape(tensor, [num_sums, num_weights])
+        s = tf.reduce_sum(tensor, 1)
+        ##########TODO: Need to look for a more optimal solution##########
+        s_list = []
+        for i in range(0, num_weights):
+            s_list.extend([s])
+        s = tf.pack(s_list, axis=1)
+        ##########TODO: Need to look for a more optimal solution##########
+        return tf.truediv(tensor, s)
+
+
 def reduce_log_sum(log_input, name=None):
     """Calculate log of a sum of elements of a tensor containing log values
     row-wise.
