@@ -63,26 +63,6 @@ class IVs(VarNode):
                 for i in range(self._num_vars)
                 for _ in range(self._num_vals)]
 
-    def _compute_value(self):
-        """Assemble the TF operations computing the output value of the node
-        for a normal upwards pass.
-
-        This function converts the integer inputs to indicators.
-
-        Returns:
-            Tensor: A tensor of shape ``[None, num_vars*num_vals]``, where the
-            first dimension corresponds to the batch size.
-        """
-        # The output type has to be conf.dtype otherwise MatMul will
-        # complain about being unable to mix types
-        oh = tf.one_hot(self._feed, self._num_vals, dtype=conf.dtype)
-        # Detect negative input values and convert them to all IVs equal to 1
-        neg = tf.expand_dims(tf.cast(tf.less(self._feed, 0), dtype=conf.dtype), dim=-1)
-        oh = tf.add(oh, neg)
-        # Reshape
-        return tf.reshape(oh, [-1, self._num_vars * self._num_vals])
-
-
     # def _compute_value(self):
     #     """Assemble the TF operations computing the output value of the node
     #     for a normal upwards pass.
@@ -99,15 +79,35 @@ class IVs(VarNode):
     #     # Detect negative input values and convert them to all IVs equal to 1
     #     neg = tf.expand_dims(tf.cast(tf.less(self._feed, 0), dtype=conf.dtype), dim=-1)
     #     oh = tf.add(oh, neg)
-    #     print("IVS: _COMPUTE_VALUE()")
     #     # Reshape
-    #     #return tf.reshape(oh, [-1, self._num_vars * self._num_vals])
-    #
-    #     # Reduce_sum
-    #     # return tf.reduce_sum(oh, -2)
-    #     #return tf.cast(tf.greater(tf.reduce_sum(oh, -2), 0), dtype=conf.dtype)
-    #
-    #     return oh
+    #     return tf.reshape(oh, [-1, self._num_vars * self._num_vals])
+
+
+    def _compute_value(self):
+        """Assemble the TF operations computing the output value of the node
+        for a normal upwards pass.
+
+        This function converts the integer inputs to indicators.
+
+        Returns:
+            Tensor: A tensor of shape ``[num_vars, None, num_vals]``, where the
+            second dimension corresponds to the batch size.
+        """
+        # The output type has to be conf.dtype otherwise MatMul will
+        # complain about being unable to mix types
+        oh = tf.one_hot(self._feed, self._num_vals, dtype=conf.dtype)
+
+        # Detect negative input values and convert them to all IVs equal to 1
+        neg = tf.expand_dims(tf.cast(tf.less(self._feed, 0), dtype=conf.dtype), dim=-1)
+        oh = tf.add(oh, neg)
+
+        # Reshape - The original shape of OH tensor is (batch X num_vars X num_vals)
+        oh_splits = []
+        # First split the OH tensor into 'num_vars' smaller tensors
+        oh_splits = tf.split(1, self._num_vars, oh)
+        # Pack the split (3D) tensors together forming a 4D tensor, and then squeeze out the last
+        # but one dimension (4D -> 3D), such that the new shape is (num_vars x batch x num_vals)
+        return tf.squeeze(tf.pack(oh_splits, axis=0), 2)
 
     def _compute_mpe_state(self, counts):
         r = tf.reshape(counts, (-1, self._num_vars, self._num_vals))
