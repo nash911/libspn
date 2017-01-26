@@ -271,13 +271,7 @@ def normalize_tensor_2D(tensor, num_weights=1, num_sums=1, name=None):
     with tf.name_scope(name, "normalize_tensor_2D", [tensor]):
         tensor = tf.convert_to_tensor(tensor)
         tensor = tf.reshape(tensor, [num_sums, num_weights])
-        s = tf.reduce_sum(tensor, 1)
-        ##########TODO: Need to look for a more optimal solution##########
-        s_list = []
-        for i in range(0, num_weights):
-            s_list.extend([s])
-        s = tf.pack(s_list, axis=1)
-        ##########TODO: Need to look for a more optimal solution##########
+        s = tf.expand_dims(tf.reduce_sum(tensor, 1), -1)
         return tf.truediv(tensor, s)
 
 

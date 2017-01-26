@@ -101,19 +101,6 @@ class Weights(ParamNode):
         value = utils.normalize_tensor(value)
         return tf.assign(self._variable, value)
 
-    # def _create(self):
-    #     """Creates a TF variable holding the vector of the SPN weights.
-    #
-    #     Returns:
-    #         Variable: A TF variable of shape ``[num_weights]``.
-    #     """
-    #     init_val = utils.broadcast_value(self._init_value,
-    #                                      (self._num_weights,),
-    #                                      dtype=conf.dtype)
-    #     init_val = utils.normalize_tensor_2D(init_val, self._num_weights, self._num_sums)
-    #     self._variable = tf.Variable(init_val, dtype=conf.dtype,
-    #                                  collections=['spn_weights'])
-
     def _create(self):
         """Creates a TF variable holding the vector of the SPN weights.
 
@@ -123,16 +110,29 @@ class Weights(ParamNode):
         init_val = utils.broadcast_value(self._init_value,
                                          (self._num_weights,),
                                          dtype=conf.dtype)
-        norm_val = utils.normalize_tensor_2D(init_val, self._num_weights, self._num_sums)
-        I_val = tf.zeros([0, (self._num_sums * self._num_weights)], dtype=conf.dtype)
-
-        for i in range(0, self._num_sums):
-            norm_val_Slice = tf.slice(norm_val, [i, 0], [1, -1])
-            norm_val_pad = tf.pad(norm_val_Slice, [[0, 0], [(i*self._num_weights), (self._num_weights * (self._num_sums-i-1))]])
-            I_val = tf.concat(0, [I_val, norm_val_pad])
-
-        self._variable = tf.Variable(I_val, dtype=conf.dtype,
+        init_val = utils.normalize_tensor_2D(init_val, self._num_weights, self._num_sums)
+        self._variable = tf.Variable(init_val, dtype=conf.dtype,
                                      collections=['spn_weights'])
+
+    # def _create(self):
+    #     """Creates a TF variable holding the vector of the SPN weights.
+    #
+    #     Returns:
+    #         Variable: A TF variable of shape ``[num_weights]``.
+    #     """
+    #     init_val = utils.broadcast_value(self._init_value,
+    #                                      (self._num_weights,),
+    #                                      dtype=conf.dtype)
+    #     norm_val = utils.normalize_tensor_2D(init_val, self._num_weights, self._num_sums)
+    #     I_val = tf.zeros([0, (self._num_sums * self._num_weights)], dtype=conf.dtype)
+    #
+    #     for i in range(0, self._num_sums):
+    #         norm_val_Slice = tf.slice(norm_val, [i, 0], [1, -1])
+    #         norm_val_pad = tf.pad(norm_val_Slice, [[0, 0], [(i*self._num_weights), (self._num_weights * (self._num_sums-i-1))]])
+    #         I_val = tf.concat(0, [I_val, norm_val_pad])
+    #
+    #     self._variable = tf.Variable(I_val, dtype=conf.dtype,
+    #                                  collections=['spn_weights'])
 
     def _compute_out_size(self):
         return self._num_weights

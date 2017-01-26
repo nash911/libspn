@@ -274,6 +274,7 @@ class Sums(OpNode):
         values = utils.concat_maybe(1, value_tensors)
         return weight_tensor, ivs_tensor, values
 
+    # # Original implamantation
     # def _compute_value(self, weight_tensor, ivs_tensor, *value_tensors):
     #     weight_tensor, ivs_tensor, values = self._compute_value_common(
     #         weight_tensor, ivs_tensor, *value_tensors)
@@ -281,12 +282,47 @@ class Sums(OpNode):
     #     #return tf.matmul(values_selected, tf.reshape(weight_tensor, [-1, 1])) #TODO: Ask why tf.reshape() and not tf.transpose()
     #     return tf.matmul(values_selected, weight_tensor, transpose_b=True)
 
+    # # Tiled implamantation
+    # def _compute_value(self, weight_tensor, ivs_tensor, *value_tensors):
+    #     weight_tensor, ivs_tensor, values = self._compute_value_common(
+    #         weight_tensor, ivs_tensor, *value_tensors)
+    #     values_tiled = tf.tile(values, [1, self._num_sums])
+    #     values_tiled_selected = values_tiled * ivs_tensor if self._ivs else values_tiled
+    #     return tf.matmul(values_tiled_selected, weight_tensor, transpose_b=True)
+
+
+    # Broadcasting implamantation
     def _compute_value(self, weight_tensor, ivs_tensor, *value_tensors):
         weight_tensor, ivs_tensor, values = self._compute_value_common(
             weight_tensor, ivs_tensor, *value_tensors)
-        values_tiled = tf.tile(values, [1, self._num_sums])
-        values_tiled_selected = values_tiled * ivs_tensor if self._ivs else values_tiled
-        return tf.matmul(values_tiled_selected, weight_tensor, transpose_b=True)
+        values_selected = values * ivs_tensor if self._ivs else tf.tile(tf.expand_dims(values, 0), [self._num_sums, 1, 1])
+
+        #return tf.matmul(values_selected, weight_tensor, transpose_b=True)
+
+        # The following is a temporary fix in TF r0.11, as tf.matmul does not support greater than R-2 tensors as input.
+        # The following subpotimal implementation can simple be replaced with the above commented line
+        # 'return tf.matmul(...)' in TF r0.12.
+        matmul_output = self._broadcasting_for_matmul(values_selected, weight_tensor)
+
+        gather_cols = []
+        for s in range(0, self._num_sums):
+            gather_cols.extend([tf.squeeze(tf.slice(matmul_output, [s, 0, s], [1, -1, 1]))])
+
+        return tf.pack(gather_cols, axis=-1)
+
+
+    def _broadcasting_for_matmul(self, values_selected, weight_tensor):
+        output_list = []
+        for i in range (0, self._num_sums):
+            output = tf.matmul(tf.squeeze(tf.slice(values_selected, [i, 0, 0], [1, -1, -1]), 0), weight_tensor, transpose_b=True)
+            # value_slice = tf.slice(values_selected, [i, 0, 0], [1, -1, -1])
+            # slice_squeeze = tf.squeeze(value_slice, 0)
+            # matmul_op = tf.matmul(slice_squeeze, weight_tensor, transpose_b=True)
+            # output = matmul_op
+
+            output_list.extend([output])
+
+        return tf.pack(output_list, axis=0)
 
     def _compute_log_value(self, weight_tensor, ivs_tensor, *value_tensors):
         weight_tensor, ivs_tensor, values = self._compute_value_common(
