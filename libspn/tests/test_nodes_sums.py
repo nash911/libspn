@@ -155,7 +155,7 @@ class TestNodesSums(unittest.TestCase):
              [0.2, 0.2, 0.3, 0.3, 0.1, 0.2, 0.3, 0.4],
              {v1: [[0.1, 0.2]],
               v2: [[0.3, 0.4]]},
-            [(0.1*0.2 + 0.2*0.2 + 0.3*0.3 + 0.4*0.3), (0.1*0.1 + 0.2*0.2 + 0.3*0.3 + 0.4*0.4)])
+            [[(0.1*0.2 + 0.2*0.2 + 0.3*0.3 + 0.4*0.3), (0.1*0.1 + 0.2*0.2 + 0.3*0.3 + 0.4*0.4)]])
 
         test([v1, v2],
              num_sums,
@@ -164,7 +164,7 @@ class TestNodesSums(unittest.TestCase):
              {v1: [[0.1, 0.2]],
               v2: [[0.3, 0.4]],
               ivs: [[-1, -1]]},
-            [(0.1*0.2 + 0.2*0.2 + 0.3*0.3 + 0.4*0.3), (0.1*0.1 + 0.2*0.2 + 0.3*0.3 + 0.4*0.4)])
+            [[(0.1*0.2 + 0.2*0.2 + 0.3*0.3 + 0.4*0.3), (0.1*0.1 + 0.2*0.2 + 0.3*0.3 + 0.4*0.4)]])
 
         test([v1, v2],
              num_sums,
@@ -173,7 +173,7 @@ class TestNodesSums(unittest.TestCase):
              {v1: [[0.1, 0.2]],
               v2: [[0.3, 0.4]],
               ivs: [[2, -1]]},
-            [(0.3*0.3), (0.1*0.1 + 0.2*0.2 + 0.3*0.3 + 0.4*0.4)])
+            [[(0.3*0.3), (0.1*0.1 + 0.2*0.2 + 0.3*0.3 + 0.4*0.4)]])
 
         test([v1, v2],
              num_sums,
@@ -182,7 +182,7 @@ class TestNodesSums(unittest.TestCase):
              {v1: [[0.1, 0.2]],
               v2: [[0.3, 0.4]],
               ivs: [[3, 2]]},
-            [(0.4*0.3), (0.3*0.3)])
+            [[(0.4*0.3), (0.3*0.3)]])
 
         # Single input with 1 value, single-element batch
         ivs = spn.IVs(num_vars=num_sums, num_vals=2)
@@ -192,7 +192,7 @@ class TestNodesSums(unittest.TestCase):
              None,
              [0.4, 0.6, 0.2, 0.8],
              {v1: [[0.1, 0.2]]},
-            [(0.1*0.4 + 0.2*0.6), (0.1*0.2 + 0.2*0.8)])
+            [[(0.1*0.4 + 0.2*0.6), (0.1*0.2 + 0.2*0.8)]])
 
         test([v1],
              num_sums,
@@ -200,7 +200,7 @@ class TestNodesSums(unittest.TestCase):
              [0.4, 0.6, 0.2, 0.8],
              {v1: [[0.1, 0.2]],
              ivs: [[-1, -1]]},
-            [(0.1*0.4 + 0.2*0.6), (0.1*0.2 + 0.2*0.8)])
+            [[(0.1*0.4 + 0.2*0.6), (0.1*0.2 + 0.2*0.8)]])
 
         test([v1],
              num_sums,
@@ -208,7 +208,7 @@ class TestNodesSums(unittest.TestCase):
              [0.4, 0.6, 0.2, 0.8],
              {v1: [[0.1, 0.2]],
              ivs: [[0, 1]]},
-            [(0.1*0.4), (0.2*0.8)])
+            [[(0.1*0.4), (0.2*0.8)]])
 
 
         # SINGLE SUM NODE
@@ -323,7 +323,7 @@ class TestNodesSums(unittest.TestCase):
              [0.2, 0.2, 0.3, 0.3],
              {v1: [[0.1, 0.2]],
               v2: [[0.3, 0.4]]},
-            [0.1*0.2 + 0.2*0.2 + 0.3*0.3 + 0.4*0.3])
+            [[0.1*0.2 + 0.2*0.2 + 0.3*0.3 + 0.4*0.3]])
 
         test([v1, v2],
              num_sums,
@@ -332,7 +332,7 @@ class TestNodesSums(unittest.TestCase):
              {v1: [[0.1, 0.2]],
               v2: [[0.3, 0.4]],
               ivs: [[-1]]},
-            [0.1*0.2 + 0.2*0.2 + 0.3*0.3 + 0.4*0.3])
+            [[0.1*0.2 + 0.2*0.2 + 0.3*0.3 + 0.4*0.3]])
 
         test([v1, v2],
              num_sums,
@@ -341,7 +341,7 @@ class TestNodesSums(unittest.TestCase):
              {v1: [[0.1, 0.2]],
               v2: [[0.3, 0.4]],
               ivs: [[2]]},
-            [0.3*0.3])
+            [[0.3*0.3]])
 
         # Single input with 1 value, single-element batch
         ivs = spn.IVs(num_vars=num_sums, num_vals=2)
@@ -351,7 +351,7 @@ class TestNodesSums(unittest.TestCase):
              None,
              [0.4, 0.6],
              {v1: [[0.1, 0.2]]},
-            [0.1*0.4 + 0.2*0.6])
+            [[0.1*0.4 + 0.2*0.6]])
 
         test([v1],
              num_sums,
@@ -359,7 +359,7 @@ class TestNodesSums(unittest.TestCase):
              [0.2, 0.8],
              {v1: [[0.1, 0.2]],
              ivs: [[-1]]},
-            [0.1*0.2 + 0.2*0.8])
+            [[0.1*0.2 + 0.2*0.8]])
 
         test([v1],
              num_sums,
@@ -367,7 +367,7 @@ class TestNodesSums(unittest.TestCase):
              [0.2, 0.8],
              {v1: [[0.1, 0.2]],
              ivs: [[1]]},
-            [0.2*0.8])
+            [[0.2*0.8]])
 
 if __name__ == '__main__':
     unittest.main()
