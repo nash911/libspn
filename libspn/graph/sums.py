@@ -284,9 +284,9 @@ class Sums(OpNode):
     def _compute_log_value(self, weight_tensor, ivs_tensor, *value_tensors):
         weight_tensor, ivs_tensor, values = self._compute_value_common(
             weight_tensor, ivs_tensor, *value_tensors)
-        values_selected = values + ivs_tensor if self._ivs else values
-        values_weighted = values_selected + weight_tensor
-        return utils.reduce_log_sum(values_weighted)
+        values_selected = values + ivs_tensor if self._ivs else tf.tile(tf.expand_dims(values, 0), [self._num_sums, 1, 1])
+        values_weighted = values_selected + tf.expand_dims(weight_tensor, axis=-2)
+        return utils.reduce_log_sum_3D(values_weighted)
 
     def _compute_mpe_value(self, weight_tensor, ivs_tensor, *value_tensors):
         weight_tensor, ivs_tensor, values = self._compute_value_common(

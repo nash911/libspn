@@ -303,6 +303,46 @@ def reduce_log_sum(log_input, name=None):
         # Choose the output for each row
         return tf.where(all_zero, out_zeros, out_normal)
 
+# log(x + y) = log(x) + log(1 + exp(log(y) - log(x)))
+def reduce_log_sum_3D(log_input, name=None):
+    """Calculate log of a sum of elements of a 3D tensor containing log values
+    row-wise, with each slice representing a single sum node.
+
+    Args:
+        log_input (Tensor): Tensor containing log values.
+
+    Returns:
+        Tensor: The reduced tensor of shape ``(None, num_sums)``, where the first
+         and the second dimensions corresponds to the second and first  dimensions
+         of ``log_input``.
+    """
+    # WARNING: As described here:
+    # http://stackoverflow.com/questions/39211546/bug-in-tensorflow-reduce-max-for-negative-infinity
+    # there clearly is a problem with reduce_max which returns min float32
+    # instead of -inf for negative infinity inputs. At the same time,
+    # tf.maximum works as expected. The final result is still correct, and
+    # actually will lead to a simpler code since the -inf detection is
+    # not needed in such case. But it is unclear if this behavior of reduce_max is
+    # stable or a bug that will be removed. For now, we include the -inf
+    # detection in case this bug gets fixed one day.
+    with tf.name_scope(name, "reduce_log_sum_3D", [log_input]):
+        # log(x)
+        log_max = tf.reduce_max(log_input, axis=-1, keep_dims=True)
+        # Compute the value assuming at least one input is not -inf
+        # r = log(y) - log(x)
+        log_rebased = tf.sub(log_input, log_max)
+        # log(x) + log(1 + exp(r))???
+        out_normal = log_max + tf.log(tf.reduce_sum(tf.exp(log_rebased),
+                                                    axis=-1, keep_dims=True))
+        # Check if all input values in a row are -inf (all non-log inputs are 0)
+        # and produce output for that case
+        all_zero = tf.equal(log_max,
+                            tf.constant(-math.inf, dtype=log_input.dtype))
+        out_zeros = tf.fill(tf.shape(out_normal),
+                            tf.constant(-math.inf, dtype=log_input.dtype))
+        # Choose the output for each row
+        return tf.transpose(tf.squeeze(tf.where(all_zero, out_zeros, out_normal), -1))
+        #return out_zeros
 
 def concat_maybe(values, axis, name='concat'):
     """Concatenate ``values`` if there is more than one value. Oherwise, just

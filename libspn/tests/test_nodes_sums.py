@@ -27,18 +27,18 @@ class TestNodesSums(unittest.TestCase):
                 n = spn.Sums(*values, num_sums=num_sums, ivs=ivs)
                 n.generate_weights(weights)
                 op = n.get_value(spn.InferenceType.MARGINAL)
-                #op_log = n.get_log_value(spn.InferenceType.MARGINAL)
+                op_log = n.get_log_value(spn.InferenceType.MARGINAL)
                 with tf.Session() as sess:
                     spn.initialize_weights(n).run()
                     out = sess.run(op, feed_dict=feed)
-                    #out_log = sess.run(tf.exp(op_log), feed_dict=feed)
+                    out_log = sess.run(tf.exp(op_log), feed_dict=feed)
 
                 np.testing.assert_array_almost_equal(
                     out,
                     np.array(output, dtype=spn.conf.dtype.as_numpy_dtype()))
-                # np.testing.assert_array_almost_equal(
-                #     out_log,
-                #     np.array(output, dtype=spn.conf.dtype.as_numpy_dtype()))
+                np.testing.assert_array_almost_equal(
+                    out_log,
+                    np.array(output, dtype=spn.conf.dtype.as_numpy_dtype()))
 
         # Create inputs
         v1 = spn.ContVars(num_vars=2, name="ContVars1")
