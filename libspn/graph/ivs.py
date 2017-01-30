@@ -103,11 +103,11 @@ class IVs(VarNode):
 
         # Reshape - The original shape of OH tensor is (batch X num_vars X num_vals)
         oh_splits = []
-        # First split the OH tensor into 'num_vars' smaller tensors
-        oh_splits = tf.split(1, self._num_vars, oh)
+        # First, split the OH tensor into 'num_vars' smaller tensors
+        oh_splits = tf.split(oh, self._num_vars, 1)
         # Pack the split (3D) tensors together forming a 4D tensor, and then squeeze out the last
         # but one dimension (4D -> 3D), such that the new shape is (num_vars x batch x num_vals)
-        return tf.squeeze(tf.pack(oh_splits, axis=0), 2)
+        return tf.squeeze(tf.stack(oh_splits, axis=0), 2)
 
     def _compute_mpe_state(self, counts):
         r = tf.reshape(counts, (-1, self._num_vars, self._num_vals))
