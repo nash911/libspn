@@ -291,16 +291,16 @@ class Sums(OpNode):
     def _compute_mpe_value(self, weight_tensor, ivs_tensor, *value_tensors):
         weight_tensor, ivs_tensor, values = self._compute_value_common(
             weight_tensor, ivs_tensor, *value_tensors)
-        values_selected = values * ivs_tensor if self._ivs else values
-        values_weighted = values_selected * weight_tensor
-        return tf.reduce_max(values_weighted, 1, keep_dims=True)
+        values_selected = values * ivs_tensor if self._ivs else tf.tile(tf.expand_dims(values, 0), [self._num_sums, 1, 1])
+        values_weighted = values_selected * tf.expand_dims(weight_tensor, axis=-2)
+        return tf.transpose(tf.reduce_max(values_weighted, axis=-1))
 
     def _compute_log_mpe_value(self, weight_tensor, ivs_tensor, *value_tensors):
         weight_tensor, ivs_tensor, values = self._compute_value_common(
             weight_tensor, ivs_tensor, *value_tensors)
-        values_selected = values + ivs_tensor if self._ivs else values
-        values_weighted = values_selected + weight_tensor
-        return tf.reduce_max(values_weighted, 1, keep_dims=True)
+        values_selected = values + ivs_tensor if self._ivs else tf.tile(tf.expand_dims(values, 0), [self._num_sums, 1, 1])
+        values_weighted = values_selected + tf.expand_dims(weight_tensor, axis=-2)
+        return tf.transpose(tf.reduce_max(values_weighted, axis=-1))
 
     def _compute_mpe_path_common(self, values_weighted, counts, weight_value,
                                  ivs_value, *value_values):
