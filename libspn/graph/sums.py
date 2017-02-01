@@ -278,12 +278,25 @@ class Sums(OpNode):
     def _compute_value(self, weight_tensor, ivs_tensor, *value_tensors):
         weight_tensor, ivs_tensor, values = self._compute_value_common(
             weight_tensor, ivs_tensor, *value_tensors)
+        if self._ivs:
+            # IVs tensor shape = [Batch, (num_sums * num_vals)]
+            # First, split the IVs tensor into 'num_sums' smaller tensors.
+            # Then pack the splist tensors together such that the new shape
+            # of IVs = [num_sums, Batch, num_vals]
+            ivs_tensor = tf.stack(tf.split(ivs_tensor, self._num_sums, 1))
         values_selected = values * ivs_tensor if self._ivs else tf.tile(tf.expand_dims(values, 0), [self._num_sums, 1, 1])
         return tf.transpose(tf.squeeze(tf.matmul(values_selected, tf.expand_dims(weight_tensor, -2), transpose_b=True), -1))
+
 
     def _compute_log_value(self, weight_tensor, ivs_tensor, *value_tensors):
         weight_tensor, ivs_tensor, values = self._compute_value_common(
             weight_tensor, ivs_tensor, *value_tensors)
+        if self._ivs:
+            # IVs tensor shape = [Batch, (num_sums * num_vals)]
+            # First, split the IVs tensor into 'num_sums' smaller tensors.
+            # Then pack the splist tensors together such that the new shape
+            # of IVs = [num_sums, Batch, num_vals]
+            ivs_tensor = tf.stack(tf.split(ivs_tensor, self._num_sums, 1))
         values_selected = values + ivs_tensor if self._ivs else tf.tile(tf.expand_dims(values, 0), [self._num_sums, 1, 1])
         values_weighted = values_selected + tf.expand_dims(weight_tensor, axis=-2)
         return utils.reduce_log_sum_3D(values_weighted)
@@ -291,6 +304,12 @@ class Sums(OpNode):
     def _compute_mpe_value(self, weight_tensor, ivs_tensor, *value_tensors):
         weight_tensor, ivs_tensor, values = self._compute_value_common(
             weight_tensor, ivs_tensor, *value_tensors)
+        if self._ivs:
+            # IVs tensor shape = [Batch, (num_sums * num_vals)]
+            # First, split the IVs tensor into 'num_sums' smaller tensors.
+            # Then pack the splist tensors together such that the new shape
+            # of IVs = [num_sums, Batch, num_vals]
+            ivs_tensor = tf.stack(tf.split(ivs_tensor, self._num_sums, 1))
         values_selected = values * ivs_tensor if self._ivs else tf.tile(tf.expand_dims(values, 0), [self._num_sums, 1, 1])
         values_weighted = values_selected * tf.expand_dims(weight_tensor, axis=-2)
         return tf.transpose(tf.reduce_max(values_weighted, axis=-1))
@@ -298,6 +317,12 @@ class Sums(OpNode):
     def _compute_log_mpe_value(self, weight_tensor, ivs_tensor, *value_tensors):
         weight_tensor, ivs_tensor, values = self._compute_value_common(
             weight_tensor, ivs_tensor, *value_tensors)
+        if self._ivs:
+            # IVs tensor shape = [Batch, (num_sums * num_vals)]
+            # First, split the IVs tensor into 'num_sums' smaller tensors.
+            # Then pack the splist tensors together such that the new shape
+            # of IVs = [num_sums, Batch, num_vals]
+            ivs_tensor = tf.stack(tf.split(ivs_tensor, self._num_sums, 1))
         values_selected = values + ivs_tensor if self._ivs else tf.tile(tf.expand_dims(values, 0), [self._num_sums, 1, 1])
         values_weighted = values_selected + tf.expand_dims(weight_tensor, axis=-2)
         return tf.transpose(tf.reduce_max(values_weighted, axis=-1))
