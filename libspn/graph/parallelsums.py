@@ -294,8 +294,8 @@ class ParallelSums(OpNode):
             # Then pack the split tensors together such that the new shape
             # of IVs = [num_sums, Batch, num_vals]
             ivs_tensor = tf.stack(tf.split(ivs_tensor, self._num_sums, 1))
-        values_selected = values * ivs_tensor if self._ivs
-        else tf.tile(tf.expand_dims(values, 0), [self._num_sums, 1, 1])
+        values_selected = values * ivs_tensor if self._ivs else tf.tile(
+            tf.expand_dims(values, 0), [self._num_sums, 1, 1])
         return tf.transpose(tf.squeeze(tf.matmul(
             values_selected, tf.expand_dims(
                     weight_tensor, -2), transpose_b=True), -1))
@@ -309,8 +309,8 @@ class ParallelSums(OpNode):
             # Then pack the split tensors together such that the new shape
             # of IVs = [num_sums, Batch, num_vals]
             ivs_tensor = tf.stack(tf.split(ivs_tensor, self._num_sums, 1))
-        values_selected = values + ivs_tensor if self._ivs
-        else tf.tile(tf.expand_dims(values, 0), [self._num_sums, 1, 1])
+        values_selected = values + ivs_tensor if self._ivs else tf.tile(
+            tf.expand_dims(values, 0), [self._num_sums, 1, 1])
         values_weighted = values_selected + tf.expand_dims(weight_tensor, axis=-2)
         return utils.reduce_log_sum_3D(values_weighted)
 
@@ -323,8 +323,8 @@ class ParallelSums(OpNode):
             # Then pack the split tensors together such that the new shape
             # of IVs = [num_sums, Batch, num_vals]
             ivs_tensor = tf.stack(tf.split(ivs_tensor, self._num_sums, 1))
-        values_selected = values * ivs_tensor if self._ivs
-        else tf.tile(tf.expand_dims(values, 0), [self._num_sums, 1, 1])
+        values_selected = values * ivs_tensor if self._ivs else tf.tile(
+            tf.expand_dims(values, 0), [self._num_sums, 1, 1])
         values_weighted = values_selected * tf.expand_dims(weight_tensor, axis=-2)
         return tf.transpose(tf.reduce_max(values_weighted, axis=-1))
 
@@ -337,8 +337,8 @@ class ParallelSums(OpNode):
             # Then pack the split tensors together such that the new shape
             # of IVs = [num_sums, Batch, num_vals]
             ivs_tensor = tf.stack(tf.split(ivs_tensor, self._num_sums, 1))
-        values_selected = values + ivs_tensor if self._ivs
-        else tf.tile(tf.expand_dims(values, 0), [self._num_sums, 1, 1])
+        values_selected = values + ivs_tensor if self._ivs else tf.tile(
+            tf.expand_dims(values, 0), [self._num_sums, 1, 1])
         values_weighted = values_selected + tf.expand_dims(weight_tensor, axis=-2)
         return tf.transpose(tf.reduce_max(values_weighted, axis=-1))
 
@@ -444,8 +444,8 @@ class ParallelSums(OpNode):
             # Then pack the split tensors together such that the new shape
             # of IVs = [num_sums, Batch, num_vals]
             ivs_value = tf.stack(tf.split(ivs_value, self._num_sums, 1))
-        values_selected = values * ivs_value if self._ivs
-        else tf.tile(tf.expand_dims(values, 0), [self._num_sums, 1, 1])
+        values_selected = values * ivs_value if self._ivs else tf.tile(
+            tf.expand_dims(values, 0), [self._num_sums, 1, 1])
         values_weighted = values_selected * tf.expand_dims(weight_value, axis=-2)
         return self._compute_mpe_path_common(
              values_weighted, counts, weight_value, ivs_value, *value_values)
