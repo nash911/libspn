@@ -299,7 +299,7 @@ class Sum(OpNode):
                                 values_weighted.get_shape()[1]) * counts
         # Split the counts to value inputs
         _, _, *value_sizes = self.get_input_sizes(None, None, *value_values)
-        max_counts_split = utils.split(1, value_sizes, max_counts)
+        max_counts_split = tf.split(max_counts, value_sizes, 1)
         return self._scatter_to_input_tensors(
             (max_counts, weight_value),  # Weights
             (max_counts, ivs_value),  # IVs

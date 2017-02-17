@@ -119,7 +119,7 @@ class Concat(OpNode):
             raise StructureError("%s is missing inputs." % self)
         # Split counts for each input
         input_sizes = self.get_input_sizes(*input_values)
-        split = utils.split(1, input_sizes, counts)
+        split = tf.split(counts, input_sizes, 1)
         return self._scatter_to_input_tensors(*[(t, v) for t, v in
                                                 zip(split, input_values)])
 
