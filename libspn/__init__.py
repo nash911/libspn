@@ -22,6 +22,7 @@ from libspn.graph.sums import Sums
 from libspn.graph.parallelsums import ParallelSums
 from libspn.graph.product import Product
 from libspn.graph.products import Products
+from libspn.graph.permproducts import PermProducts
 from libspn.graph.weights import Weights
 from libspn.graph.weights import assign_weights
 from libspn.graph.weights import initialize_weights
@@ -97,7 +98,7 @@ __all__ = [
     'Scope', 'Input', 'Node', 'ParamNode', 'OpNode', 'VarNode',
     'Concat', 'IVs', 'ContVars',
     'Sum', 'Sums', 'ParallelSums',
-    'Product', 'Products',
+    'Product', 'Products', 'PermProducts',
     'Weights', 'assign_weights', 'initialize_weights',
     'Saver', 'Loader', 'JSONSaver', 'JSONLoader',
     'compute_graph_up', 'compute_graph_up_down',
