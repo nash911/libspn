@@ -14,7 +14,6 @@ from libspn import utils
 from libspn.exceptions import StructureError
 from libspn.log import get_logger
 
-#import math as math
 import numpy as np
 
 
@@ -123,7 +122,7 @@ class PermProducts(OpNode):
         return True
 
     def _compute_out_size(self, *input_out_sizes):
-        return 1
+        return self._num_prods
 
     def _compute_scope(self, *value_scopes):
         if not self._values:
