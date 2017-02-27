@@ -22,7 +22,8 @@ from itertools import cycle
 
 
 class Sums(OpNode):
-    """A node representing multiple sums in an SPN.
+    """A node representing multiple sums in an SPN, where each sum has it's own
+    and seperate input.
 
     Args:
         *values (input_like): Inputs providing input values to this node.
@@ -181,14 +182,14 @@ class Sums(OpNode):
             input_sizes = self.get_input_sizes()
         num_values = sum(input_sizes[2:])  # Skip ivs, weights
 
-        if init_value==1:
+        if init_value == 1:
             init_value = utils.broadcast_value(1,
                                                (self._num_sums * num_values,),
                                                dtype=conf.dtype)
 
         # Generate weights
         weights = Weights(init_value=init_value,
-                          num_weights=num_values,
+                          num_weights=int(num_values / self._num_sums),
                           num_sums=self._num_sums,
                           trainable=trainable, name=name)
         self.set_weights(weights)
@@ -226,7 +227,7 @@ class Sums(OpNode):
         return True
 
     def _compute_out_size(self, *input_out_sizes):
-        return 1
+        return self._num_sums
 
     def _compute_scope(self, weight_scopes, ivs_scopes, *value_scopes):
         if not self._values:
@@ -265,7 +266,7 @@ class Sums(OpNode):
         first_scope = flat_value_scopes[0]
         if any(s != first_scope for s in flat_value_scopes[1:]):
             Sums.info("%s is not complete with input value scopes %s",
-                     self, flat_value_scopes)
+                      self, flat_value_scopes)
             return None
         return self._compute_scope(weight_scopes, ivs_scopes, *value_scopes)
 
@@ -277,9 +278,17 @@ class Sums(OpNode):
         if not self._weights:
             raise StructureError("%s is missing weights" % self)
         # Prepare values
-        weight_tensor, ivs_tensor, *value_tensors = self._gather_input_tensors(weight_tensor, ivs_tensor, *value_tensors)
+        weight_tensor, ivs_tensor, *value_tensors = self._gather_input_tensors(
+         weight_tensor, ivs_tensor, *value_tensors)
         values = utils.concat_maybe(1, value_tensors)
-        return weight_tensor, ivs_tensor, values
+
+        # Shape of values tensor = [Batch, (num_sums * num_vals)]
+        # First, split the values tensor into 'num_sums' smaller tensors.
+        # Then pack the split tensors together such that the new shape
+        # of values tensor = [num_sums, Batch, num_vals]
+        reshaped_values = tf.stack(tf.split(values, self._num_sums, 1))
+
+        return weight_tensor, ivs_tensor, reshaped_values
 
     # Broadcasting implementation
     def _compute_value(self, weight_tensor, ivs_tensor, *value_tensors):
@@ -291,9 +300,10 @@ class Sums(OpNode):
             # Then pack the split tensors together such that the new shape
             # of IVs = [num_sums, Batch, num_vals]
             ivs_tensor = tf.stack(tf.split(ivs_tensor, self._num_sums, 1))
-        values_selected = values * ivs_tensor if self._ivs else tf.tile(tf.expand_dims(values, 0), [self._num_sums, 1, 1])
-        return tf.transpose(tf.squeeze(tf.matmul(values_selected, tf.expand_dims(weight_tensor, -2), transpose_b=True), -1))
-
+        values_selected = values * ivs_tensor if self._ivs else values
+        return tf.transpose(tf.squeeze(tf.matmul(
+          values_selected, tf.expand_dims(weight_tensor, -2),
+          transpose_b=True), -1))
 
     def _compute_log_value(self, weight_tensor, ivs_tensor, *value_tensors):
         weight_tensor, ivs_tensor, values = self._compute_value_common(
@@ -304,7 +314,7 @@ class Sums(OpNode):
             # Then pack the split tensors together such that the new shape
             # of IVs = [num_sums, Batch, num_vals]
             ivs_tensor = tf.stack(tf.split(ivs_tensor, self._num_sums, 1))
-        values_selected = values + ivs_tensor if self._ivs else tf.tile(tf.expand_dims(values, 0), [self._num_sums, 1, 1])
+        values_selected = values + ivs_tensor if self._ivs else values
         values_weighted = values_selected + tf.expand_dims(weight_tensor, axis=-2)
         return utils.reduce_log_sum_3D(values_weighted)
 
@@ -317,7 +327,7 @@ class Sums(OpNode):
             # Then pack the split tensors together such that the new shape
             # of IVs = [num_sums, Batch, num_vals]
             ivs_tensor = tf.stack(tf.split(ivs_tensor, self._num_sums, 1))
-        values_selected = values * ivs_tensor if self._ivs else tf.tile(tf.expand_dims(values, 0), [self._num_sums, 1, 1])
+        values_selected = values * ivs_tensor if self._ivs else values
         values_weighted = values_selected * tf.expand_dims(weight_tensor, axis=-2)
         return tf.transpose(tf.reduce_max(values_weighted, axis=-1))
 
@@ -330,60 +340,10 @@ class Sums(OpNode):
             # Then pack the split tensors together such that the new shape
             # of IVs = [num_sums, Batch, num_vals]
             ivs_tensor = tf.stack(tf.split(ivs_tensor, self._num_sums, 1))
-        values_selected = values + ivs_tensor if self._ivs else tf.tile(tf.expand_dims(values, 0), [self._num_sums, 1, 1])
+        values_selected = values + ivs_tensor if self._ivs else values
         values_weighted = values_selected + tf.expand_dims(weight_tensor, axis=-2)
         return tf.transpose(tf.reduce_max(values_weighted, axis=-1))
 
-    # # Original - Modified
-    # def _compute_mpe_path_common(self, values_weighted, counts, weight_value,
-    #                              ivs_value, *value_values):
-    #     # Propagate the counts to the max value
-    #     max_indices = tf.argmax(values_weighted, dimension=-1)
-    #     max_counts = tf.one_hot(max_indices,
-    #                             values_weighted.get_shape()[-1]) * counts
-    #     # Split the counts to value inputs
-    #     _, _, *value_sizes = self.get_input_sizes(None, None, *value_values)
-    #     max_counts_split = []
-    #     max_counts_split = tf.split(max_counts, value_sizes, 2)
-    #     return self._scatter_to_input_tensors(
-    #         (max_counts, weight_value),  # Weights
-    #         (max_counts, ivs_value),  # IVs
-    #         *[(t, v) for t, v in zip(max_counts_split, value_values)])  # Values
-
-    # # Works only on _num_sums = 1
-    # def _compute_mpe_path_common(self, values_weighted, counts, weight_value,
-    #                              ivs_value, *value_values):
-    #     # Propagate the counts to the max value
-    #     max_indices = tf.argmax(values_weighted, dimension=-1)
-    #     max_counts = tf.one_hot(max_indices,
-    #                             values_weighted.get_shape()[-1]) * counts
-    #     # Split the counts to value inputs
-    #     _, _, *value_sizes = self.get_input_sizes(None, None, *value_values)
-    #     #max_counts_split = []
-    #     max_counts_split = tf.split(max_counts, value_sizes, 1)
-    #     max_counts_split_slices = tf.split(max_counts, self._num_sums, 0)
-    #     weight_split = tf.split(weight_value, self._num_sums, 0)
-    #     return self._scatter_to_input_tensors(
-    #     (tf.squeeze(max_counts), weight_value),  # Weights,
-    #     (tf.squeeze(max_counts), ivs_value),  # IVs
-    #     *[(t, v) for t, v in zip(max_counts_split, value_values)])  # Values
-
-    # # Add counts between sum nodes
-    # def _compute_mpe_path_common(self, values_weighted, counts, weight_value,
-    #                              ivs_value, *value_values):
-    #     # Propagate the counts to the max value
-    #     max_indices = tf.argmax(values_weighted, dimension=-1)
-    #     max_counts = tf.one_hot(max_indices,
-    #                             values_weighted.get_shape()[-1]) * counts
-    #     # Split the counts to value inputs
-    #     _, _, *value_sizes = self.get_input_sizes(None, None, *value_values)
-    #     max_counts_split = tf.split(tf.reduce_sum(max_counts, 0), value_sizes, 1)
-    #     return self._scatter_to_input_tensors(
-    #         (max_counts, weight_value),  # Weights
-    #         (max_counts, ivs_value),  # IVs
-    #         *[(t, v) for t, v in zip(max_counts_split, value_values)])  # Values
-
-    # Works for ths first Sum node
     def _compute_mpe_path_common(self, values_weighted, counts, weight_value,
                                  ivs_value, *value_values):
         # Propagate the counts to the max value
@@ -395,35 +355,12 @@ class Sums(OpNode):
         max_counts_slices = tf.split(max_counts, self._num_sums, 0)
         max_counts_slices_squeezed = [tf.squeeze(mc, [0]) for mc in max_counts_slices]
         max_counts_split = []
-        [max_counts_split.extend((tf.split(mc, value_sizes, 1))) for mc in max_counts_slices_squeezed]
+        [max_counts_split.extend((tf.split(mc, value_sizes, 1)))
+         for mc in max_counts_slices_squeezed]
         return self._scatter_to_input_tensors(
             (max_counts, weight_value),  # Weights
             (max_counts, ivs_value),  # IVs
             *[(t, v) for t, v in zip(max_counts_split, cycle(value_values))])  # Values
-
-
-    # def _compute_mpe_path_common(self, values_weighted, counts, weight_value,
-    #                              ivs_value, *value_values):
-    #     # Propagate the counts to the max value
-    #     max_indices = tf.argmax(values_weighted, dimension=-1)
-    #     max_counts = tf.one_hot(max_indices,
-    #                             values_weighted.get_shape()[-1]) * counts
-    #     # Split the counts to value inputs
-    #     _, _, *value_sizes = self.get_input_sizes(None, None, *value_values)
-    #     max_counts_slices = tf.split(max_counts, self._num_sums, 0)
-    #     max_counts_slices_squeezed = [tf.squeeze(mc, [0]) for mc in max_counts_slices]
-    #     max_counts_split = []
-    #     scattered_tensors = []
-    #     scattered_tensors.extend(self._scatter_to_input_tensors((max_counts, weight_value),  # Weights
-    #                                                        (max_counts, ivs_value)))
-    #     #[max_counts_split.extend((tf.split(mc, value_sizes, 1))) for mc in max_counts_slices_squeezed]
-    #     for i in range(0, len(max_counts_slices_squeezed)):
-    #         print("\n INSIDE FOR LOOP: \n", i)
-    #         max_counts_split = tf.split(max_counts_slices_squeezed[i], value_sizes, 1)
-    #         scattered_tensors = self._scatter_to_input_tensors(*[(t, v) for t, v in zip(max_counts_split, value_values)])  # Values
-    #
-    #         #print("\n INSIDE FOR LOOP: \n", i)
-    #     return scattered_tensors
 
     def _compute_mpe_path(self, counts, weight_value, ivs_value, *value_values,
                           add_random=None, use_unweighted=False):
@@ -436,14 +373,15 @@ class Sums(OpNode):
             # Then pack the split tensors together such that the new shape
             # of IVs = [num_sums, Batch, num_vals]
             ivs_value = tf.stack(tf.split(ivs_value, self._num_sums, 1))
-        values_selected = values * ivs_value if self._ivs else tf.tile(tf.expand_dims(values, 0), [self._num_sums, 1, 1])
+        values_selected = values * ivs_value if self._ivs else \
+            tf.tile(tf.expand_dims(values, 0), [self._num_sums, 1, 1])
         values_weighted = values_selected * tf.expand_dims(weight_value, axis=-2)
         return self._compute_mpe_path_common(
              values_weighted, counts, weight_value, ivs_value, *value_values)
-            #tf.squeeze(values_weighted, [0]), counts, weight_value, ivs_value, *value_values)
 
-    def _compute_log_mpe_path(self, counts, weight_value, ivs_value, *value_values,
-                              add_random=None, use_unweighted=False):
+    def _compute_log_mpe_path(self, counts, weight_value, ivs_value,
+                              *value_values, add_random=None,
+                              use_unweighted=False):
         # Get weighted, IV selected values
         weight_value, ivs_value, values = self._compute_value_common(
             weight_value, ivs_value, *value_values)
