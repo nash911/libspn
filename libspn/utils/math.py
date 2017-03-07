@@ -111,11 +111,12 @@ def gather_cols(params, indices, name=None, use_gather_nd=True):
 
 
 def scatter_cols(params, indices, out_num_cols, name=None):
-    """Scatter columns of a 2D tensor or values of a 1D tensor into a tensor
-    with the same number of dimensions and ``out_num_cols`` columns or values.
+    """Scatter column-slices of a 3D tensor, columns of a 2D tensor or values
+    of a 1D tensor into a tensor with the same number of dimensions and
+    ``out_num_cols`` column-slices, columns or values.
 
     Args:
-        params (Tensor): A 1D or 2D tensor.
+        params (Tensor): A 1D, 2D or 3D tensor.
         indices (array_like): A 1D integer array indexing the columns in the
                               output array to which ``params`` is scattered.
         num_cols (int): The number of columns in the output tensor.
@@ -135,8 +136,10 @@ def scatter_cols(params, indices, out_num_cols, name=None):
             param_size = param_shape[0].value
         elif param_dims == 2:
             param_size = param_shape[1].value
+        elif param_dims == 3:
+            param_size = param_shape[2].value
         else:
-            raise ValueError("'params' must be 1D or 2D")
+            raise ValueError("'params' must be 1D, 2D or 3D")
         # We need the size defined for optimizations
         if param_size is None:
             raise RuntimeError("The indexed dimension of 'params' is not specified")
@@ -170,8 +173,11 @@ def scatter_cols(params, indices, out_num_cols, name=None):
             # Just pad with zeros
             if param_dims == 1:
                 return tf.pad(params, [[indices[0], out_num_cols - indices[0] - 1]])
-            else:
+            elif param_dims == 2:
                 return tf.pad(params, [[0, 0],
+                                       [indices[0], out_num_cols - indices[0] - 1]])
+            else:
+                return tf.pad(params, [[0, 0], [0, 0],
                                        [indices[0], out_num_cols - indices[0] - 1]])
         else:
             # Scatte a multi-column tensor to a multi-column tensor
@@ -180,13 +186,21 @@ def scatter_cols(params, indices, out_num_cols, name=None):
                 gather_indices = np.zeros(out_num_cols, dtype=int)
                 gather_indices[indices] = np.arange(indices.size) + 1
                 return gather_cols(with_zeros, gather_indices)
-            else:
+            elif param_dims == 2:
                 zero_col = tf.zeros((tf.shape(params)[0], 1), dtype=params.dtype)
                 with_zeros = tf.concat_v2(values=(zero_col, params), axis=1)
                 gather_indices = np.zeros(out_num_cols, dtype=int)
                 gather_indices[indices] = np.arange(indices.size) + 1
                 return gather_cols(with_zeros, gather_indices)
-
+            else:
+                zero_col = tf.zeros((tf.shape(params)[1], 1), dtype=params.dtype)
+                params_slice_list = tf.split(params, param_shape[0].value, 0)
+                params_slice_list = [tf.squeeze(ps, [0]) for ps in params_slice_list]
+                gather_indices = np.zeros(out_num_cols, dtype=int)
+                gather_indices[indices] = np.arange(indices.size) + 1
+                return tf.stack([gather_cols(
+                 tf.concat_v2(values=(zero_col, ps), axis=1), gather_indices)
+                 for ps in params_slice_list])
 
 def broadcast_value(value, shape, dtype, name=None):
     """Broadcast the given value to the given shape and dtype. If ``value`` is

@@ -64,7 +64,12 @@ class MPEPath:
                 summed = tf.add_n(parent_vals, name=node.name + "_add")
             else:
                 summed = parent_vals[0]
+
+            # Sum up between nodes, if the parent is a multi-node
+            if parent_vals[0].get_shape().ndims == 3:
+                summed = tf.reduce_sum(summed, 0)
             self._counts[node] = summed
+
             if node.is_op:
                 # Compute for inputs
                 with tf.name_scope(node.name):
