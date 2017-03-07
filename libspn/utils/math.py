@@ -115,7 +115,7 @@ def scatter_cols(params, indices, num_out_cols, name=None):
     with the same number of dimensions and ``num_out_cols`` columns or values.
 
     Args:
-        params (Tensor): A 1D or 2D tensor.
+        params (Tensor): A 1D, 2D or 3D tensor.
         indices (array_like): A 1D integer array indexing the columns in the
                               output array to which ``params`` is scattered.
         num_cols (int): The number of columns in the output tensor.
@@ -135,8 +135,10 @@ def scatter_cols(params, indices, num_out_cols, name=None):
             param_size = param_shape[0].value
         elif param_dims == 2:
             param_size = param_shape[1].value
+        elif param_dims == 3:
+            param_size = param_shape[2].value
         else:
-            raise ValueError("'params' must be 1D or 2D")
+            raise ValueError("'params' must be 1D, 2D or 3D")
         # We need the size defined for optimizations
         if param_size is None:
             raise RuntimeError("The indexed dimension of 'params' is not specified")
