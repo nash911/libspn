@@ -14,6 +14,8 @@ from libspn import utils
 from libspn.exceptions import StructureError
 from libspn.log import get_logger
 
+from itertools import chain
+
 
 class Products(OpNode):
     """A node representing a multiple products in an SPN.
@@ -21,7 +23,8 @@ class Products(OpNode):
     Args:
         *values (input_like): Inputs providing input values to this node.
             See :meth:`~libspn.Input.as_input` for possible values.
-        num_prods (input_like): Input providing numbe of products modeled by this single products node.
+        num_prods (input_like): Input providing numbe of products modeled by
+           this single products node.
         name (str): Name of the node.
     """
 
@@ -85,7 +88,7 @@ class Products(OpNode):
         return True
 
     def _compute_out_size(self, *input_out_sizes):
-        return 1
+        return self._num_prods
 
     def _compute_scope(self, *value_scopes):
         if not self._values:
@@ -122,7 +125,7 @@ class Products(OpNode):
             values = value_tensors[0]
         if self._num_prods > 1:
             # Shape of values tensor = [Batch, (num_prods * num_vals)]
-            # First, split the values tensor into 'num_prodss' smaller tensors.
+            # First, split the values tensor into 'num_prods' smaller tensors.
             # Then pack the split tensors together such that the new shape
             # of values tensor = [num_prods, Batch, num_vals]
             values = tf.stack(tf.split(values, self._num_prods, 1))
@@ -155,16 +158,26 @@ class Products(OpNode):
         if not self._values:
             raise StructureError("%s is missing input values." % self)
 
-        def process_input(v_input, v_value):
+        def process_input(v_input, v_value, count):
             input_size = v_input.get_size(v_value)
-            # Tile the counts if input is larger than 1
-            return (tf.tile(counts, [1, input_size])
-                    if input_size > 1 else counts)
 
-        # For each input, pass counts to all elements selected by indices
-        value_counts = [(process_input(v_input, v_value), v_value)
-                        for v_input, v_value
-                        in zip(self._values, value_values)]
+            # Tile the counts if input is larger than 1
+            return (tf.tile(count, [1, input_size])
+                    if input_size > 1 else count)
+
+        num_inputs_per_product = int(len(self.get_input_sizes()) / self._num_prods)
+
+        # Split the counts matrix into num_prod columns, then clone each column
+        # number-of-inputs-per-product times
+        counts_list = list(chain(*[[c] * num_inputs_per_product for c in
+                           tf.split(counts, self._num_prods, axis=1)]))
+
+        # For each input of each product node, pass relevant counts to all
+        # elements selected by indices
+        value_counts = [(process_input(v_input, v_value, count), v_value)
+                        for v_input, v_value, count
+                        in zip(self._values, value_values, counts_list)]
+
         # TODO: Scatter to input tensors can be merged with tiling to reduce
         # the amount of operations.
         return self._scatter_to_input_tensors(*value_counts)
