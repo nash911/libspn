@@ -345,25 +345,6 @@ class Sums(OpNode):
         values_weighted = values_selected + tf.expand_dims(weight_tensor, axis=-2)
         return tf.transpose(tf.reduce_max(values_weighted, axis=-1))
 
-    # def _compute_mpe_path_common(self, values_weighted, counts, weight_value,
-    #                              ivs_value, *value_values):
-    #     # Propagate the counts to the max value
-    #     max_indices = tf.argmax(values_weighted, dimension=-1)
-    #     max_counts = tf.one_hot(max_indices, values_weighted.get_shape()[-1]) * tf.stack(
-    #         tf.split(counts, self._num_sums, 1))
-    #     # Split the counts to value inputs
-    #     _, _, *value_sizes = self.get_input_sizes(None, None, *value_values)
-    #     #max_counts_split = []
-    #     #print ("\n value_sizes: ", value_sizes)
-    #     #max_counts_split = tf.split(max_counts, value_sizes, 2)
-    #     #max_counts_split = tf.tile(counts, [1, self._num_sums]) if self._num_sums > 1 else counts
-    #     #max_counts_split = [max_counts, max_counts]
-    #     max_counts_split = tf.split(max_counts, self._num_sums, 0)
-    #     return self._scatter_to_input_tensors(
-    #         (max_counts, weight_value),  # Weights
-    #         (max_counts, ivs_value),  # IVs
-    #         *[(t, v) for t, v in zip(max_counts_split, value_values)])  # Values
-
     def _compute_mpe_path_common(self, values_weighted, counts, weight_value,
                                  ivs_value, *value_values):
         # Propagate the counts to the max value
