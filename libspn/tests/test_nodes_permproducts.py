@@ -207,6 +207,32 @@ class TestNodesPermProduct(unittest.TestCase):
              {v2: [[0.7, 0.8, 0.9]]},       # 0.9
              [[0.9]])
 
+    def test_compute_mpe_path(self):
+        v12 = spn.ContVars(num_vars=6)
+        v34 = spn.ContVars(num_vars=8)
+        p = spn.PermProducts((v12, [0, 2, 4]), (v34, [1, 4, 7]))
+        counts = tf.placeholder(tf.float32, shape=(None, 9))
+        op = p._compute_mpe_path(tf.identity(counts),
+                                 v12.get_value(),
+                                 v34.get_value())
+        feed = [[1, 2, 3, 4, 5, 6, 7, 8, 9],
+                [11, 12, 13, 14, 15, 16, 17, 18, 19],
+                [21, 22, 23, 24, 25, 26, 27, 28, 29]]
+        with tf.Session() as sess:
+            out = sess.run(op, feed_dict={counts: feed})
+
+        np.testing.assert_array_almost_equal(
+            out[0], np.array([[6.0, 0.0, 15.0, 0.0, 24.0, 0.0],
+                              [36.0, 0.0, 45.0, 0.0, 54.0, 0.0],
+                              [66.0, 0.0, 75.0, 0.0, 84.0, 0.0]],
+                             dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            out[1], np.array([[0.0, 12.0, 0.0, 0.0, 15.0, 0.0, 0.0, 18.0],
+                              [0.0, 42.0, 0.0, 0.0, 45.0, 0.0, 0.0, 48.0],
+                              [0.0, 72.0, 0.0, 0.0, 75.0, 0.0, 0.0, 78.0]],
+                             dtype=np.float32))
+
 
 if __name__ == '__main__':
     unittest.main()
