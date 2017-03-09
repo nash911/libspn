@@ -59,15 +59,16 @@ class MPEPath:
             root (Node): The root node of the SPN graph.
         """
         def down_fun(node, parent_vals):
+            # Sum up between nodes, for all parents which are ParallelSums (multi-node)
+            parent_vals = [tf.reduce_sum(pv, 0) if pv.get_shape().ndims == 3
+                           else pv for pv in parent_vals]
+
             # Sum up all parent vals
             if len(parent_vals) > 1:
                 summed = tf.add_n(parent_vals, name=node.name + "_add")
             else:
                 summed = parent_vals[0]
 
-            # Sum up between nodes, if the parent is a multi-node
-            if parent_vals[0].get_shape().ndims == 3:
-                summed = tf.reduce_sum(summed, 0)
             self._counts[node] = summed
 
             if node.is_op:
