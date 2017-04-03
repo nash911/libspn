@@ -202,6 +202,7 @@ def scatter_cols(params, indices, out_num_cols, name=None):
                  tf.concat_v2(values=(zero_col, ps), axis=1), gather_indices)
                  for ps in params_slice_list])
 
+
 def broadcast_value(value, shape, dtype, name=None):
     """Broadcast the given value to the given shape and dtype. If ``value`` is
     one of the members of :class:`~libspn.ValueType`, the requested value will
@@ -301,6 +302,7 @@ def reduce_log_sum(log_input, name=None):
         # Choose the output for each row
         return tf.where(all_zero, out_zeros, out_normal)
 
+
 # log(x + y) = log(x) + log(1 + exp(log(y) - log(x)))
 def reduce_log_sum_3D(log_input, name=None):
     """Calculate log of a sum of elements of a 3D tensor containing log values
@@ -340,7 +342,7 @@ def reduce_log_sum_3D(log_input, name=None):
                             tf.constant(-math.inf, dtype=log_input.dtype))
         # Choose the output for each row
         return tf.transpose(tf.squeeze(tf.where(all_zero, out_zeros, out_normal), -1))
-        #return out_zeros
+
 
 def concat_maybe(concat_dim, values, name='concat'):
     """Concatenate values if there is more than one value. Oherwise, just
