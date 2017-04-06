@@ -15,6 +15,7 @@ from .math import normalize_tensor
 from .math import reduce_log_sum
 from .math import concat_maybe
 from .math import split
+from .math import range_with_blocksize
 from .partition import StirlingNumber
 from .partition import StirlingRatio
 from .partition import Stirling
@@ -32,7 +33,7 @@ from .serialization import str2type, type2str
 # All
 __all__ = ['scatter_cols', 'gather_cols', 'ValueType',
            'broadcast_value', 'normalize_tensor',
-           'reduce_log_sum', 'concat_maybe', 'split',
+           'reduce_log_sum', 'concat_maybe', 'split', 'range_with_blocksize',
            'StirlingNumber', 'StirlingRatio', 'Stirling',
            'random_partition', 'all_partitions',
            'random_partitions_by_sampling',

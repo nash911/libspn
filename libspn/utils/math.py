@@ -323,3 +323,20 @@ def split(split_dim, split_sizes, value, name=None):
 
 def print_tensor(*tensors):
     return tf.Print(tensors[0], tensors)
+
+def range_with_blocksize(start, stop, block_size, step):
+    # A function that produces an arithmetic progression (Similar to
+    # Python's range() function), but for a given block-size of
+    # consecutive numbers.
+    # E.g: range_with_blocksize(start=0, stop=20, block_size=3, step=5)
+    # = [0, 1, 2, 5, 6, 7, 10, 11, 12, 15, 16, 17]
+    counts_indices = []
+    it = 0
+    low = start
+    high = low + block_size
+    while low < stop:
+        counts_indices = counts_indices + list(range(low, high))
+        it += 1
+        low = start + (it * step)
+        high = low + block_size
+    return counts_indices
