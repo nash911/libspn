@@ -107,7 +107,7 @@ class Products(OpNode):
         flat_value_scopes = list(chain.from_iterable(value_scopes_))
         for s1, s2 in combinations(flat_value_scopes, 2):
             if s1 & s2:
-                Product.info("%s is not decomposable with input value scopes %s",
+                Products.info("%s is not decomposable with input value scopes %s",
                              self, flat_value_scopes)
                 return None
         return self._compute_scope(*value_scopes)
