@@ -13,7 +13,7 @@ import numpy as np
 from context import libspn as spn
 
 
-class TestNodesPermProduct(unittest.TestCase):
+class TestNodesPermProducts(unittest.TestCase):
 
     def tearDown(self):
         tf.reset_default_graph()
@@ -51,12 +51,12 @@ class TestNodesPermProduct(unittest.TestCase):
         v2 = spn.ContVars(num_vars=3)
         v3 = spn.ContVars(num_vars=3)
 
-        # Multiple Product nodes
-        # ----------------------
+        # Multiple Product nodes - Common input Sizes
+        # -------------------------------------------
 
         # Case 1: No. of inputs > Input size
         # No. of inputs = 3
-        # Input size = 2
+        # Input size = 2, i.e, [2, 2, 2] --> {O O | O O | O O}
 
         # Multi-element batch
         test([(v1, [0, 1]), (v2, [1, 2]), (v3, [0, 2])],
@@ -81,7 +81,7 @@ class TestNodesPermProduct(unittest.TestCase):
 
         # Case 2: No. of inputs < Input size
         # No. of inputs = 2
-        # Input size = 3
+        # Input size = 3, i.e, [3, 3] --> {O O O | O O O}
 
         # Multi-element batch
         test([v1, v2],
@@ -106,7 +106,7 @@ class TestNodesPermProduct(unittest.TestCase):
 
         # Case 3: No. of inputs == Input size
         # No. of inputs = 3
-        # Input size = 3
+        # Input size = 3, i.e, [3, 3, 3] --> {O O O | O O O | O O O}
 
         # Multi-element batch
         test([v1, v2, v3],
@@ -150,12 +150,112 @@ class TestNodesPermProduct(unittest.TestCase):
                (0.3 * 0.8 * 0.14), (0.3 * 0.8 * 0.15), (0.3 * 0.8 * 0.16),
                (0.3 * 0.9 * 0.14), (0.3 * 0.9 * 0.15), (0.3 * 0.9 * 0.16)]])
 
+        # Multiple Product nodes - Varying input Sizes
+        # --------------------------------------------
+
+        # Case 4: Ascending input sizes (2 inputs)
+        # No. of inputs = 2
+        # Input size = [2, 3] --> {O O | O O O}
+
+        # Multi-element batch
+        test([(v1, [0, 2]), v2],
+             {v1: [[0.1, 0.2, 0.3],      # 0.1  0.3
+                   [0.4, 0.5, 0.6]],     # 0.4  0.6
+              v2: [[0.7, 0.8, 0.9],
+                   [0.11, 0.12, 0.13]]},
+             [[(0.1 * 0.7), (0.1 * 0.8), (0.1 * 0.9),
+               (0.3 * 0.7), (0.3 * 0.8), (0.3 * 0.9)],
+              [(0.4 * 0.11), (0.4 * 0.12), (0.4 * 0.13),
+               (0.6 * 0.11), (0.6 * 0.12), (0.6 * 0.13)]])
+
+        # Single-element batch
+        test([(v1, [0, 2]), v2],
+             {v1: [[0.1, 0.2, 0.3]],      # 0.1  0.3
+              v2: [[0.7, 0.8, 0.9]]},
+             [[(0.1 * 0.7), (0.1 * 0.8), (0.1 * 0.9),
+               (0.3 * 0.7), (0.3 * 0.8), (0.3 * 0.9)]])
+
+        # Case 5: Descending input sizes (2 inputs)
+        # No. of inputs = 2
+        # Input size = 3, i.e, [3, 2] --> {O O O | O O}
+
+        # Multi-element batch
+        test([v1, (v2, [0, 1])],
+             {v1: [[0.1, 0.2, 0.3],
+                   [0.4, 0.5, 0.6]],
+              v2: [[0.7, 0.8, 0.9],       # 0.7  0.8
+                   [0.11, 0.12, 0.13]]},  # 0.11 0.12
+             [[(0.1 * 0.7), (0.1 * 0.8),
+               (0.2 * 0.7), (0.2 * 0.8),
+               (0.3 * 0.7), (0.3 * 0.8)],
+              [(0.4 * 0.11), (0.4 * 0.12),
+               (0.5 * 0.11), (0.5 * 0.12),
+               (0.6 * 0.11), (0.6 * 0.12)]])
+
+        # Single-element batch
+        test([v1, (v2, [0, 1])],
+             {v1: [[0.1, 0.2, 0.3]],
+              v2: [[0.7, 0.8, 0.9]]},       # 0.7  0.8
+             [[(0.1 * 0.7), (0.1 * 0.8),
+               (0.2 * 0.7), (0.2 * 0.8),
+               (0.3 * 0.7), (0.3 * 0.8)]])
+
+        # Case 6: Ascending input sizes (3 inputs)
+        # No. of inputs = 3
+        # Input size = [1, 2, 3] --> {O | O O | O O O}
+
+        # Multi-element batch
+        test([(v1, [0]), (v2, [1, 2]), v3],
+             {v1: [[0.1, 0.2, 0.3],       # 0.1
+                   [0.4, 0.5, 0.6]],      # 0.4
+              v2: [[0.7, 0.8, 0.9],       # 0.8  0.9
+                   [0.11, 0.12, 0.13]],   # 0.12 0.13
+              v3: [[0.14, 0.15, 0.16],
+                   [0.17, 0.18, 0.19]]},
+             [[(0.1 * 0.8 * 0.14), (0.1 * 0.8 * 0.15), (0.1 * 0.8 * 0.16),
+               (0.1 * 0.9 * 0.14), (0.1 * 0.9 * 0.15), (0.1 * 0.9 * 0.16)],
+              [(0.4 * 0.12 * 0.17), (0.4 * 0.12 * 0.18), (0.4 * 0.12 * 0.19),
+               (0.4 * 0.13 * 0.17), (0.4 * 0.13 * 0.18), (0.4 * 0.13 * 0.19)]])
+
+        # Single-element batch
+        test([(v1, [0]), (v2, [1, 2]), v3],
+             {v1: [[0.1, 0.2, 0.3]],       # 0.1
+              v2: [[0.7, 0.8, 0.9]],       # 0.8  0.9
+              v3: [[0.14, 0.15, 0.16]]},
+             [[(0.1 * 0.8 * 0.14), (0.1 * 0.8 * 0.15), (0.1 * 0.8 * 0.16),
+               (0.1 * 0.9 * 0.14), (0.1 * 0.9 * 0.15), (0.1 * 0.9 * 0.16)]])
+
+        # Case 7: Descending input sizes (3 inputs)
+        # No. of inputs = 3
+        # Input size = [3, 2, 1] --> {O O O | O O | O}
+
+        # Multi-element batch
+        test([v1, (v2, [0, 2]), (v3, [1])],
+             {v1: [[0.1, 0.2, 0.3],
+                   [0.4, 0.5, 0.6]],
+              v2: [[0.7, 0.8, 0.9],       # 0.7  0.9
+                   [0.11, 0.12, 0.13]],   # 0.11 0.13
+              v3: [[0.14, 0.15, 0.16],    # 0.15
+                   [0.17, 0.18, 0.19]]},  # 0.18
+             [[(0.1 * 0.7 * 0.15),  (0.1 * 0.9 * 0.15),  (0.2 * 0.7 * 0.15),
+               (0.2 * 0.9 * 0.15),  (0.3 * 0.7 * 0.15),  (0.3 * 0.9 * 0.15)],
+              [(0.4 * 0.11 * 0.18), (0.4 * 0.13 * 0.18), (0.5 * 0.11 * 0.18),
+               (0.5 * 0.13 * 0.18), (0.6 * 0.11 * 0.18), (0.6 * 0.13 * 0.18)]])
+
+        # Single-element batch
+        test([v1, (v2, [0, 2]), (v3, [1])],
+             {v1: [[0.1, 0.2, 0.3]],
+              v2: [[0.7, 0.8, 0.9]],      # 0.7  0.9
+              v3: [[0.14, 0.15, 0.16]]},  # 0.18
+             [[(0.1 * 0.7 * 0.15), (0.1 * 0.9 * 0.15), (0.2 * 0.7 * 0.15),
+               (0.2 * 0.9 * 0.15), (0.3 * 0.7 * 0.15), (0.3 * 0.9 * 0.15)]])
+
         # Single Product node
         # -------------------
 
-        # Case 4: No. of inputs > Input size
+        # Case 8: No. of inputs > Input size
         # No. of inputs = 3
-        # Input size = 1
+        # Input size = 1, i.e, [1, 1, 1] --> {O | O | O}
 
         # Multi-element batch
         test([(v1, [1]), (v2, [2]), (v3, [0])],
@@ -175,9 +275,9 @@ class TestNodesPermProduct(unittest.TestCase):
               v3: [[0.14, 0.15, 0.16]]},  # 0.14
              [[(0.2 * 0.9 * 0.14)]])
 
-        # Case 5: No. of inputs < Input size
+        # Case 9: No. of inputs < Input size
         # No. of inputs = 1
-        # Input size = 3
+        # Input size = 3, i.e, [3] --> {O O O}
 
         # Multi-element batch
         test([v1],
@@ -191,9 +291,9 @@ class TestNodesPermProduct(unittest.TestCase):
              {v1: [[0.1, 0.2, 0.3]]},
              [[(0.1 * 0.2 * 0.3)]])
 
-        # Case 6: No. of inputs == Input size
+        # Case 10: No. of inputs == Input size
         # No. of inputs = 1
-        # Input size = 1
+        # Input size = 1, i.e, [1] --> {O}
 
         # Multi-element batch
         test([(v2, [1])],
