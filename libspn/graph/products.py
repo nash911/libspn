@@ -108,7 +108,7 @@ class Products(OpNode):
         for s1, s2 in combinations(flat_value_scopes, 2):
             if s1 & s2:
                 Products.info("%s is not decomposable with input value scopes %s",
-                             self, flat_value_scopes)
+                              self, flat_value_scopes)
                 return None
         return self._compute_scope(*value_scopes)
 
