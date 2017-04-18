@@ -107,8 +107,12 @@ class Weights(ParamNode):
         Returns:
             Variable: A TF variable of shape ``[num_weights]``.
         """
+        if isinstance(self._init_value, utils.ValueType.RANDOM_UNIFORM):
+            shape = self._num_sums * self._num_weights
+        else:
+            shape = self._num_weights
         init_val = utils.broadcast_value(self._init_value,
-                                         (self._num_weights,),
+                                         shape=(shape,),
                                          dtype=conf.dtype)
         init_val = utils.normalize_tensor_2D(init_val, self._num_weights, self._num_sums)
         self._variable = tf.Variable(init_val, dtype=conf.dtype,
