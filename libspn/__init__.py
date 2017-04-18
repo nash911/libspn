@@ -34,6 +34,7 @@ from libspn.graph.algorithms import traverse_graph
 
 # Generators
 from libspn.generation.dense import DenseSPNGenerator
+from libspn.generation.dense_multinodes import DenseSPNGeneratorMultiNodes
 from libspn.generation.weights import WeightsGenerator
 from libspn.generation.weights import generate_weights
 from libspn.generation.test import TestSPNGenerator
@@ -92,8 +93,8 @@ __all__ = [
     'compute_graph_up', 'compute_graph_up_down',
     'traverse_graph',
     # Generators
-    'DenseSPNGenerator', 'WeightsGenerator', 'TestSPNGenerator',
-    'generate_weights',
+    'DenseSPNGenerator', 'DenseSPNGeneratorMultiNodes', 'WeightsGenerator',
+    'TestSPNGenerator', 'generate_weights',
     # Inference and learning
     'InferenceType', 'Value', 'LogValue', 'MPEPath', 'MPEState',
     'EMLearning', 'GDLearning',
