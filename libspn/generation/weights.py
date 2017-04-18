@@ -6,6 +6,8 @@
 # ------------------------------------------------------------------------
 
 from libspn.graph.sum import Sum
+from libspn.graph.sums import Sums  # TODO: Remove once replaced with Concat
+from libspn.graph.parallelsums import ParallelSums
 from libspn.graph.algorithms import compute_graph_up
 
 
@@ -40,7 +42,8 @@ class WeightsGenerator:
             root: The root node of the SPN graph.
         """
         def gen(node, *input_out_sizes):
-            if isinstance(node, Sum):
+            if isinstance(node, Sum) or isinstance(node, Sums) or isinstance(node,
+               ParallelSums):
                 self._weights[node] = node.generate_weights(
                     init_value=self.init_value, trainable=self.trainable,
                     input_sizes=node._gather_input_sizes(*input_out_sizes))
