@@ -11,6 +11,8 @@ from libspn.graph.algorithms import traverse_graph
 from libspn import conf
 from libspn import utils
 
+import numbers
+
 
 class Weights(ParamNode):
     """A node containing a vector of weights of a sum node.
@@ -96,9 +98,13 @@ class Weights(ParamNode):
         Returns:
             Tensor: The assignment operation.
         """
-        value = utils.broadcast_value(value, (self._num_weights,),
-                                      dtype=conf.dtype)
-        value = utils.normalize_tensor(value)
+        if isinstance(value, utils.ValueType.RANDOM_UNIFORM) \
+           or isinstance(value, numbers.Real):
+            shape = self._num_sums * self._num_weights
+        else:
+            shape = self._num_weights
+        value = utils.broadcast_value(value, (shape,), dtype=conf.dtype)
+        value = utils.normalize_tensor_2D(value, self._num_weights, self._num_sums)
         return tf.assign(self._variable, value)
 
     def _create(self):
@@ -107,7 +113,8 @@ class Weights(ParamNode):
         Returns:
             Variable: A TF variable of shape ``[num_weights]``.
         """
-        if isinstance(self._init_value, utils.ValueType.RANDOM_UNIFORM):
+        if isinstance(self._init_value, utils.ValueType.RANDOM_UNIFORM) \
+           or isinstance(self._init_value, numbers.Real):
             shape = self._num_sums * self._num_weights
         else:
             shape = self._num_weights
@@ -125,7 +132,7 @@ class Weights(ParamNode):
         return self._variable
 
     def _compute_hard_em_update(self, counts):
-        return tf.reduce_sum(counts, 0)
+        return tf.reduce_sum(counts, axis=0, keep_dims=True)
 
 
 def assign_weights(root, value):
