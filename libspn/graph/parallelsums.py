@@ -353,8 +353,8 @@ class ParallelSums(OpNode):
         _, _, *value_sizes = self.get_input_sizes(None, None, *value_values)
         max_counts_split = tf.split(max_counts_summed, value_sizes, 1)
         return self._scatter_to_input_tensors(
-            (max_counts_summed, weight_value),  # Weights
-            (max_counts_summed, ivs_value),  # IVs
+            (max_counts, weight_value),  # Weights
+            (max_counts, ivs_value),  # IVs
             *[(t, v) for t, v in zip(max_counts_split, value_values)])  # Values
 
     def _compute_mpe_path(self, counts, weight_value, ivs_value, *value_values,
