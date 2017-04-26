@@ -82,33 +82,6 @@ class IVs(VarNode):
         # Reshape
         return tf.reshape(oh, [-1, self._num_vars * self._num_vals])
 
-    # Implementation that changes shape of IVs to [num_vars x batch x num_vals]
-    # def _compute_value(self):
-    #     """Assemble the TF operations computing the output value of the node
-    #     for a normal upwards pass.
-    #
-    #     This function converts the integer inputs to indicators.
-    #
-    #     Returns:
-    #         Tensor: A tensor of shape ``[num_vars, None, num_vals]``, where the
-    #         second dimension corresponds to the batch size.
-    #     """
-    #     # The output type has to be conf.dtype otherwise MatMul will
-    #     # complain about being unable to mix types
-    #     oh = tf.one_hot(self._feed, self._num_vals, dtype=conf.dtype)
-    #
-    #     # Detect negative input values and convert them to all IVs equal to 1
-    #     neg = tf.expand_dims(tf.cast(tf.less(self._feed, 0), dtype=conf.dtype), dim=-1)
-    #     oh = tf.add(oh, neg)
-    #
-    #     # Reshape - The original shape of OH tensor is [batch X num_vars X num_vals]
-    #     oh_splits = []
-    #     # First, split the OH tensor into 'num_vars' smaller tensors
-    #     oh_splits = tf.split(oh, self._num_vars, 1)
-    #     # Pack the split (3D) tensors together forming a 4D tensor, and then squeeze out the last
-    #     # but one dimension (4D -> 3D), such that the new shape is [num_vars x batch x num_vals]
-    #     return tf.squeeze(tf.stack(oh_splits, axis=0), 2)
-
     def _compute_mpe_state(self, counts):
         r = tf.reshape(counts, (-1, self._num_vars, self._num_vals))
         return tf.argmax(r, dimension=2)
