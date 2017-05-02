@@ -347,14 +347,16 @@ class ParallelSums(OpNode):
         max_indices = tf.argmax(values_weighted, dimension=-1)
         max_counts = tf.one_hot(max_indices, values_weighted.get_shape()[-1]) * tf.stack(
             tf.split(counts, self._num_sums, 1))
-        # Sum up counts between individual sum nodes
+        # Sum up max counts between individual sum nodes
         max_counts_summed = tf.reduce_sum(max_counts, 0)
-        # Split the counts to value inputs
+        # Split the max counts to value inputs
         _, _, *value_sizes = self.get_input_sizes(None, None, *value_values)
         max_counts_split = tf.split(max_counts_summed, value_sizes, 1)
+        # Sum up max counts batch-wise as counts of Weights
+        max_counts_weights = tf.reduce_sum(max_counts, axis=-2, keep_dims=False)
         return self._scatter_to_input_tensors(
-            (max_counts, weight_value),  # Weights
-            (max_counts, ivs_value),  # IVs
+            (max_counts_weights, weight_value),  # Weights
+            (max_counts_summed, ivs_value),  # IVs
             *[(t, v) for t, v in zip(max_counts_split, value_values)])  # Values
 
     def _compute_mpe_path(self, counts, weight_value, ivs_value, *value_values,
