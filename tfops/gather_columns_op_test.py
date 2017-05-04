@@ -3,13 +3,13 @@
 import unittest
 import tensorflow as tf
 import numpy as np
+from context import libspn as spn
 
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import common_shapes
 
 
 class TestGatherColumns(tf.test.TestCase):
-    gather_columns_module = tf.load_op_library('./gather_columns.so')
     num_cols = 1000
     num_rows = 30000
 
@@ -20,7 +20,7 @@ class TestGatherColumns(tf.test.TestCase):
         with self.test_session(use_gpu=False) as sess:
             params = tf.constant([], dtype=tf.int32)
             indices = [1, 2, 3]
-            gather = self.gather_columns_module.gather_columns(params, indices)
+            gather = spn.ops.gather_cols(params, indices)
             with self.assertRaisesOpError("Params cannot be empty."):
                 sess.run(gather)
 
@@ -28,7 +28,7 @@ class TestGatherColumns(tf.test.TestCase):
         with self.test_session(use_gpu=False) as sess:
             params = [0, 1, 2]
             indices = tf.constant([], dtype=tf.int32)
-            gather = self.gather_columns_module.gather_columns(params, indices)
+            gather = spn.ops.gather_cols(params, indices)
             with self.assertRaisesOpError("Indices cannot be empty."):
                 sess.run(gather)
 
@@ -36,31 +36,31 @@ class TestGatherColumns(tf.test.TestCase):
         params = 10
         indices = [1, 2, 3]
         with self.assertRaises(ValueError):
-            self.gather_columns_module.gather_columns(params, indices)
+            spn.ops.gather_cols(params, indices)
 
     def testScalarIndices(self):
         params = [1, 2, 3]
         indices = 1
         with self.assertRaises(ValueError):
-            self.gather_columns_module.gather_columns(params, indices)
+            spn.ops.gather_cols(params, indices)
 
     def test3DParams(self):
         params = [[[0, 1, 2]]]
         indices = [1, 2, 3]
         with self.assertRaises(ValueError):
-            self.gather_columns_module.gather_columns(params, indices)
+            spn.ops.gather_cols(params, indices)
 
     def test2DIndices(self):
         params = [[0, 1, 2]]
         indices = [[1, 2, 3]]
         with self.assertRaises(ValueError):
-            self.gather_columns_module.gather_columns(params, indices)
+            spn.ops.gather_cols(params, indices)
 
     def testNegativeIndices_CPU(self):
         with self.test_session(use_gpu=False) as sess:
             params = tf.constant([1, 2, 3], dtype=tf.float32)
             indices = [-1]
-            gather = self.gather_columns_module.gather_columns(params, indices)
+            gather = spn.ops.gather_cols(params, indices)
             with self.assertRaisesOpError("Indices\(0\) is not in range \(0, 3\]."):
                 sess.run(gather)
 
@@ -68,7 +68,7 @@ class TestGatherColumns(tf.test.TestCase):
         with self.test_session(use_gpu=True) as sess:
             params = tf.constant([1, 2, 3], dtype=tf.float32)
             indices = [-1]
-            gather = self.gather_columns_module.gather_columns(params, indices)
+            gather = spn.ops.gather_cols(params, indices)
             with self.assertRaisesOpError("Indices\(0\) is not in range \(0, 3\]."):
                 sess.run(gather)
 
@@ -76,7 +76,7 @@ class TestGatherColumns(tf.test.TestCase):
         with self.test_session(use_gpu=False) as sess:
             params = tf.constant([[1, 2, 3, 4, 5]], dtype=tf.float64)
             indices = tf.constant([2, 1, 10, 1, 2], dtype=tf.int32)
-            gather = self.gather_columns_module.gather_columns(params, indices)
+            gather = spn.ops.gather_cols(params, indices)
             with self.assertRaisesOpError("Indices\(2\) is not in range \(0, 5\]."):
                 sess.run(gather)
 
@@ -84,7 +84,7 @@ class TestGatherColumns(tf.test.TestCase):
         with self.test_session(use_gpu=True) as sess:
             params = tf.constant([[1, 2, 3, 4, 5]], dtype=tf.float64)
             indices = tf.constant([2, 1, 10, 1, 2], dtype=tf.int32)
-            gather = self.gather_columns_module.gather_columns(params, indices)
+            gather = spn.ops.gather_cols(params, indices)
             with self.assertRaisesOpError("Indices\(2\) is not in range \(0, 5\]."):
                 sess.run(gather)
 
@@ -123,9 +123,9 @@ class TestGatherColumns(tf.test.TestCase):
                 ind_32 = tf.constant(indices, dtype=tf.int32)
                 ind_64 = tf.constant(indices, dtype=tf.int64)
 
-                op1d = self.gather_columns_module.gather_columns(p1d, ind_64)
-                op2d1 = self.gather_columns_module.gather_columns(p2d1, ind_32)
-                op2d2 = self.gather_columns_module.gather_columns(p2d2, ind_64)
+                op1d = spn.ops.gather_cols(p1d, ind_64)
+                op2d1 = spn.ops.gather_cols(p2d1, ind_32)
+                op2d2 = spn.ops.gather_cols(p2d2, ind_64)
 
                 out1d = sess.run(op1d)
                 out2d1 = sess.run(op2d1)
