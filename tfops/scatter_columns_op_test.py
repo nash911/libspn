@@ -3,13 +3,13 @@
 import unittest
 import tensorflow as tf
 import numpy as np
+from context import libspn as spn
 
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import common_shapes
 
 
 class TestScatterColumns(tf.test.TestCase):
-    scatter_columns_module = tf.load_op_library('./scatter_columns.so')
     num_cols = 1000
     num_rows = 25000
 
@@ -20,66 +20,66 @@ class TestScatterColumns(tf.test.TestCase):
         with self.test_session(use_gpu=False) as sess:
             params = [0, 1, 2]
             indices = tf.constant([], dtype=tf.int32)
-            out_num_cols = 10
+            num_out_cols = 10
             pad_elem = 0
-            scatter = self.scatter_columns_module.scatter_columns(
-                params, indices, pad_elem, out_num_cols)
+            scatter = spn.ops.scatter_cols(
+                params, indices, pad_elem, num_out_cols)
             with self.assertRaisesOpError("Indices cannot be empty."):
                 sess.run(scatter)
 
     def testScalarParams(self):
         params = 10
         indices = [1, 2, 3]
-        out_num_cols = 10
+        num_out_cols = 10
         pad_elem = 0
         with self.assertRaises(ValueError):
-            self.scatter_columns_module.scatter_columns(
-                params, indices, pad_elem, out_num_cols)
+            spn.ops.scatter_cols(
+                params, indices, pad_elem, num_out_cols)
 
     def testScalarIndices(self):
         params = [1, 2, 3]
         indices = 1
-        out_num_cols = 10
+        num_out_cols = 10
         pad_elem = 0
         with self.assertRaises(ValueError):
-            self.scatter_columns_module.scatter_columns(
-                params, indices, pad_elem, out_num_cols)
+            spn.ops.scatter_cols(
+                params, indices, pad_elem, num_out_cols)
 
     def test3DParams(self):
         params = [[[0, 1, 2]]]
         indices = [1, 2, 3]
-        out_num_cols = 10
+        num_out_cols = 10
         pad_elem = 0
         with self.assertRaises(ValueError):
-            self.scatter_columns_module.scatter_columns(
-                params, indices, pad_elem, out_num_cols)
+            spn.ops.scatter_cols(
+                params, indices, pad_elem, num_out_cols)
 
     def test2DIndices(self):
         params = [[0, 1, 2]]
         indices = [[1, 2, 3]]
-        out_num_cols = 10
+        num_out_cols = 10
         pad_elem = 0
         with self.assertRaises(ValueError):
-            self.scatter_columns_module.scatter_columns(
-                params, indices, pad_elem, out_num_cols)
+            spn.ops.scatter_cols(
+                params, indices, pad_elem, num_out_cols)
 
     def test2DPadElem(self):
         params = [[0, 1, 2]]
         indices = [1, 2, 3]
-        out_num_cols = 5
+        num_out_cols = 5
         pad_elem = [[0]]
         with self.assertRaises(ValueError):
-            self.scatter_columns_module.scatter_columns(
-                params, indices, pad_elem, out_num_cols)
+            spn.ops.scatter_cols(
+                params, indices, pad_elem, num_out_cols)
 
     def testNegativeIndices_CPU(self):
         with self.test_session(use_gpu=False) as sess:
             params = tf.constant([[1, 2, 3]], dtype=tf.float64)
             indices = [1, -1, 0]
-            out_num_cols = 6
+            num_out_cols = 6
             pad_elem = 0
-            scatter = self.scatter_columns_module.scatter_columns(
-                params, indices, pad_elem, out_num_cols)
+            scatter = spn.ops.scatter_cols(
+                params, indices, pad_elem, num_out_cols)
             with self.assertRaisesOpError("Indices\(1\): -1 is not in range "
                                           "\(0, 6\]."):
                 sess.run(scatter)
@@ -88,10 +88,10 @@ class TestScatterColumns(tf.test.TestCase):
         with self.test_session(use_gpu=True) as sess:
             params = tf.constant([[1, 2, 3]], dtype=tf.float64)
             indices = [1, -1, 0]
-            out_num_cols = 6
+            num_out_cols = 6
             pad_elem = 0
-            scatter = self.scatter_columns_module.scatter_columns(
-                params, indices, pad_elem, out_num_cols)
+            scatter = spn.ops.scatter_cols(
+                params, indices, pad_elem, num_out_cols)
             with self.assertRaisesOpError("Indices\(1\): -1 is not in range "
                                           "\(0, 6\]."):
                 sess.run(scatter)
@@ -100,10 +100,10 @@ class TestScatterColumns(tf.test.TestCase):
         with self.test_session(use_gpu=False) as sess:
             params = tf.constant([[1, 2, 3, 4, 5]], dtype=tf.float64)
             indices = tf.constant([2, 1, 10, 6, 5], dtype=tf.int32)
-            out_num_cols = 7
+            num_out_cols = 7
             pad_elem = 0
-            scatter = self.scatter_columns_module.scatter_columns(
-                params, indices, pad_elem, out_num_cols)
+            scatter = spn.ops.scatter_cols(
+                params, indices, pad_elem, num_out_cols)
             with self.assertRaisesOpError("Indices\(2\): 10 is not in range "
                                           "\(0, 7\]."):
                 sess.run(scatter)
@@ -112,10 +112,10 @@ class TestScatterColumns(tf.test.TestCase):
         with self.test_session(use_gpu=True) as sess:
             params = tf.constant([[1, 2, 3, 4, 5]], dtype=tf.float64)
             indices = tf.constant([2, 1, 10, 6, 5], dtype=tf.int32)
-            out_num_cols = 7
+            num_out_cols = 7
             pad_elem = 0
-            scatter = self.scatter_columns_module.scatter_columns(
-                params, indices, pad_elem, out_num_cols)
+            scatter = spn.ops.scatter_cols(
+                params, indices, pad_elem, num_out_cols)
             with self.assertRaisesOpError("Indices\(2\): 10 is not in range "
                                           "\(0, 7\]."):
                 sess.run(scatter)
@@ -124,10 +124,10 @@ class TestScatterColumns(tf.test.TestCase):
         with self.test_session(use_gpu=False) as sess:
             params = tf.constant([1, 2, 3, 4, 5], dtype=tf.float64)
             indices = tf.constant([0, 1, 2, 2, 4], dtype=tf.int32)
-            out_num_cols = 5
+            num_out_cols = 5
             pad_elem = 0
-            scatter = self.scatter_columns_module.scatter_columns(
-                params, indices, pad_elem, out_num_cols)
+            scatter = spn.ops.scatter_cols(
+                params, indices, pad_elem, num_out_cols)
             with self.assertRaisesOpError(
                     "Indices cannot contain duplicates. Total no. of indices: "
                     "5 != no. of unique indices: 4."):
@@ -137,10 +137,10 @@ class TestScatterColumns(tf.test.TestCase):
         with self.test_session(use_gpu=True) as sess:
             params = tf.constant([1, 2, 3, 4, 5], dtype=tf.float64)
             indices = tf.constant([0, 1, 2, 2, 4], dtype=tf.int32)
-            out_num_cols = 5
+            num_out_cols = 5
             pad_elem = 0
-            scatter = self.scatter_columns_module.scatter_columns(
-                params, indices, pad_elem, out_num_cols)
+            scatter = spn.ops.scatter_cols(
+                params, indices, pad_elem, num_out_cols)
             with self.assertRaisesOpError(
                     "Indices cannot contain duplicates. Total no. of indices: "
                     "5 != no. of unique indices: 4."):
@@ -150,11 +150,11 @@ class TestScatterColumns(tf.test.TestCase):
         with self.test_session(use_gpu=False) as sess:
             params = tf.constant([1, 2, 3, 4, 5], dtype=tf.float64)
             indices = tf.constant([4, 3, 2, 1, 0], dtype=tf.int32)
-            out_num_cols = 4
+            num_out_cols = 4
             pad_elem = 0
-            scatter = self.scatter_columns_module.scatter_columns(
-                params, indices, pad_elem, out_num_cols)
-            with self.assertRaisesOpError("out_num_cols: 4 must be >= size of "
+            scatter = spn.ops.scatter_cols(
+                params, indices, pad_elem, num_out_cols)
+            with self.assertRaisesOpError("num_out_cols: 4 must be >= size of "
                                           "the indexed dimension of params: 5"):
                 sess.run(scatter)
 
@@ -162,10 +162,10 @@ class TestScatterColumns(tf.test.TestCase):
         with self.test_session(use_gpu=False) as sess:
             params = tf.constant([1, 2, 3, 4, 5], dtype=tf.float64)
             indices = tf.constant([11, 10, 9, 8], dtype=tf.int32)
-            out_num_cols = 12
+            num_out_cols = 12
             pad_elem = 0
-            scatter = self.scatter_columns_module.scatter_columns(
-                params, indices, pad_elem, out_num_cols)
+            scatter = spn.ops.scatter_cols(
+                params, indices, pad_elem, num_out_cols)
             with self.assertRaisesOpError(
                     "Size of indices: 4 and the indexed dimension "
                     "of params - 5 - must be the same."):
@@ -174,7 +174,7 @@ class TestScatterColumns(tf.test.TestCase):
     def test_scatter_cols(self):
         ops.RegisterShape("ScatterColumns")(common_shapes.call_cpp_shape_fn)
 
-        def test(params, indices, out_num_cols, pad_elem, dtype,
+        def test(params, indices, num_out_cols, pad_elem, dtype,
                  true_output, use_gpu=False, large_case=False):
             with self.test_session(use_gpu=use_gpu) as sess:
                 if dtype == bool:
@@ -208,12 +208,12 @@ class TestScatterColumns(tf.test.TestCase):
                 ind_32 = tf.constant(indices, dtype=tf.int32)
                 ind_64 = tf.constant(indices, dtype=tf.int64)
 
-                op1d = self.scatter_columns_module.scatter_columns(
-                    p1d, ind_64, pad_elem, out_num_cols)
-                op2d1 = self.scatter_columns_module.scatter_columns(
-                    p2d1, ind_32, pad_elem, out_num_cols)
-                op2d2 = self.scatter_columns_module.scatter_columns(
-                    p2d2, ind_64, pad_elem, out_num_cols)
+                op1d = spn.ops.scatter_cols(
+                    p1d, ind_64, pad_elem, num_out_cols)
+                op2d1 = spn.ops.scatter_cols(
+                    p2d1, ind_32, pad_elem, num_out_cols)
+                op2d2 = spn.ops.scatter_cols(
+                    p2d2, ind_64, pad_elem, num_out_cols)
 
                 out1d = sess.run(op1d)
                 out2d1 = sess.run(op2d1)
@@ -222,13 +222,13 @@ class TestScatterColumns(tf.test.TestCase):
                 np.testing.assert_array_almost_equal(out1d, true_output)
                 self.assertEqual(dtype.as_numpy_dtype, out1d.dtype)
                 np.testing.assert_array_equal(op1d.get_shape(),
-                                              np.array([out_num_cols]))
+                                              np.array([num_out_cols]))
 
                 true_output_2d1 = [np.array(true_output)]
                 np.testing.assert_array_almost_equal(out2d1, true_output_2d1)
                 self.assertEqual(dtype.as_numpy_dtype, out2d1.dtype)
                 np.testing.assert_array_equal(op2d1.get_shape(),
-                                              np.array([1, out_num_cols]))
+                                              np.array([1, num_out_cols]))
 
                 if not large_case:
                     r_1 = np.array(true_output)
@@ -244,7 +244,7 @@ class TestScatterColumns(tf.test.TestCase):
                                        r_2,
                                        r_3]
 
-                    true_shape = np.array([3, out_num_cols])
+                    true_shape = np.array([3, num_out_cols])
                 else:
                     # For large test case, again create a large output matrix,
                     # based on the true output parameter, to compare the op
@@ -258,7 +258,7 @@ class TestScatterColumns(tf.test.TestCase):
                         params_matrix[i, ind] = true_output_row[ind] * (i + 1)
                     true_output_2d2 = params_matrix
 
-                    true_shape = np.array([self.num_rows, out_num_cols])
+                    true_shape = np.array([self.num_rows, num_out_cols])
 
                 np.testing.assert_array_almost_equal(out2d2, true_output_2d2)
                 self.assertEqual(dtype.as_numpy_dtype, out2d2.dtype)
@@ -590,33 +590,6 @@ class TestScatterColumns(tf.test.TestCase):
              [False, False, False, False, False, True, False, False,
               False, True, False, False, False, False, False],
              use_gpu=True)
-
-        # Large case for performance test
-        # CPU
-        true_output = list(np.arange(self.num_cols, 0, -0.5))
-        true_output[1:self.num_cols * 2:2] = list(np.full((self.num_cols), pad_elem, np.int64))
-        test(list(range(1, self.num_cols + 1)),  # [1, 2, 3, ..., n-1, n]
-             # [2n-2, 2n-4, 2n-6, ..., 2n-n, n-2, n-4, ..., 2, 0]
-             list(range((self.num_cols * 2) - 2, -1, -2)),
-             self.num_cols * 2,
-             pad_elem,
-             tf.float64,
-             true_output,  # [n, pad_elem, n-1, pad_elem, n-2, ..., 2, pad_elem, 1, pad_elem]
-             use_gpu=False,
-             large_case=True)
-
-        # GPU
-        true_output = list(np.arange(self.num_cols, 0, -0.5))
-        true_output[1:self.num_cols * 2:2] = list(np.full((self.num_cols), pad_elem, np.int64))
-        test(list(range(1, self.num_cols + 1)),  # [1, 2, 3, ..., n-1, n]
-             # [2n-2, 2n-4, 2n-6, ..., 2n-n, n-2, n-4, ..., 2, 0]
-             list(range((self.num_cols * 2) - 2, -1, -2)),
-             self.num_cols * 2,
-             pad_elem,
-             tf.float64,
-             true_output,  # [n, pad_elem, n-1, pad_elem, n-2, ..., 2, pad_elem, 1, pad_elem]
-             use_gpu=True,
-             large_case=True)
 
 
 if __name__ == '__main__':
