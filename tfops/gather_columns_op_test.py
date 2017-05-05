@@ -64,24 +64,8 @@ class TestGatherColumns(tf.test.TestCase):
             with self.assertRaisesOpError("Indices\(0\) is not in range \(0, 3\]."):
                 sess.run(gather)
 
-    def testNegativeIndices_GPU(self):
-        with self.test_session(use_gpu=True) as sess:
-            params = tf.constant([1, 2, 3], dtype=tf.float32)
-            indices = [-1]
-            gather = spn.ops.gather_cols(params, indices)
-            with self.assertRaisesOpError("Indices\(0\) is not in range \(0, 3\]."):
-                sess.run(gather)
-
     def testBadIndices_CPU(self):
         with self.test_session(use_gpu=False) as sess:
-            params = tf.constant([[1, 2, 3, 4, 5]], dtype=tf.float64)
-            indices = tf.constant([2, 1, 10, 1, 2], dtype=tf.int32)
-            gather = spn.ops.gather_cols(params, indices)
-            with self.assertRaisesOpError("Indices\(2\) is not in range \(0, 5\]."):
-                sess.run(gather)
-
-    def testBadIndices_GPU(self):
-        with self.test_session(use_gpu=True) as sess:
             params = tf.constant([[1, 2, 3, 4, 5]], dtype=tf.float64)
             indices = tf.constant([2, 1, 10, 1, 2], dtype=tf.int32)
             gather = spn.ops.gather_cols(params, indices)
