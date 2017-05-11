@@ -14,11 +14,10 @@ using shape_inference::Dimension;
 REGISTER_OP("ScatterColumns")
     .Input("params: T")
     .Input("indices: IndT")
-    .Input("pad_elem: T")
     .Output("columns: T")
     .Attr("num_out_col: int >= 1")
-    .Attr("T: type")
-    .Attr("IndT: {int32,int64}")
+    .Attr("T: realnumbertype")
+    .Attr("IndT: {int32, int64}")
     .SetShapeFn([](InferenceContext* ctx) {
       ShapeHandle params_shape;
       TF_RETURN_IF_ERROR(ctx->WithRankAtLeast(ctx->input(0), 1, &params_shape));
@@ -27,8 +26,6 @@ REGISTER_OP("ScatterColumns")
       ShapeHandle unused_shape;
       TF_RETURN_IF_ERROR(
           ctx->WithRank(ctx->input(1), 1, &unused_shape));  //--indices--//
-      TF_RETURN_IF_ERROR(
-          ctx->WithRank(ctx->input(2), 0, &unused_shape));  //--pad_elem--//
 
       int64 num_out_cols;
       TF_RETURN_IF_ERROR(ctx->GetAttr("num_out_col", &num_out_cols));
@@ -53,7 +50,7 @@ class ScatterColumnsOp : public OpKernel
     const DataType data_t = DataTypeToEnum<T>::v();
     const DataType index_t = DataTypeToEnum<IndT>::v();
     OP_REQUIRES_OK(ctx,
-                   ctx->MatchSignature({data_t, index_t, data_t}, {data_t}));
+                   ctx->MatchSignature({data_t, index_t}, {data_t}));
 
     OP_REQUIRES_OK(ctx, ctx->GetAttr("num_out_col", &num_out_cols));
   }
@@ -67,9 +64,6 @@ class ScatterColumnsOp : public OpKernel
     const Tensor& indices = ctx->input(1);
     auto indices_flat = indices.flat<IndT>();
 
-    //--Grab the input - pad_elem--//
-    const Tensor& pad_elem_tensor = ctx->input(2);
-
     OP_REQUIRES(ctx, TensorShapeUtils::IsVectorOrHigher(params.shape()),
                 errors::InvalidArgument("Params must be at least a vector."));
 
@@ -77,12 +71,6 @@ class ScatterColumnsOp : public OpKernel
         ctx, TensorShapeUtils::IsVector(indices.shape()),
         errors::InvalidArgument("Indices must be a vector, but it is a: ",
                                 indices.dims(), "D Tensor."));
-
-    //--Check pad_elem is a scalar--//
-    OP_REQUIRES(
-        ctx, TensorShapeUtils::IsScalar(pad_elem_tensor.shape()),
-        errors::InvalidArgument("pad_elem must be a scalar, but it is a: ",
-                                pad_elem_tensor.dims(), "D Tensor."));
 
     int64 indices_size = indices.dim_size(0);
 
@@ -136,13 +124,11 @@ class ScatterColumnsOp : public OpKernel
 
     auto output_tensor = output->shaped<T, 2>({params_rows, num_out_cols});
     auto params_tensor = params.shaped<T, 2>({params_rows, params_cols});
-    auto pad_elem = pad_elem_tensor.flat<T>();
 
     functor::ScatterColumnsFunctor<Device, T, IndT> functor;
 
     OP_REQUIRES_OK(ctx, functor(ctx->eigen_device<Device>(), params_tensor,
-                                indices_flat, num_out_cols, pad_elem.data(),
-                                output_tensor));
+                                indices_flat, num_out_cols, output_tensor));
   }
 
  private:
@@ -164,8 +150,7 @@ class ScatterColumnsOp : public OpKernel
   REGISTER_SCATTERCOLUMNS_ALL_INDICES(CPU, type)
 
 //--Registration of CPU implementations--//
-TF_CALL_ALL_TYPES(REGISTER_SCATTERCOLUMNS_CPU);
-TF_CALL_QUANTIZED_TYPES(REGISTER_SCATTERCOLUMNS_CPU);
+TF_CALL_REAL_NUMBER_TYPES(REGISTER_SCATTERCOLUMNS_CPU);
 
 #undef REGISTER_SCATTERCOLUMNS_CPU
 

@@ -23,7 +23,7 @@ namespace functor
 template <typename T, typename IndT>
 Status CountAndCopy(const typename TTypes<T>::ConstMatrix& params,
                     const typename TTypes<IndT>::ConstFlat& indices,
-                    const IndT& num_out_cols, const T* pad_elem,
+                    const IndT& num_out_cols,
                     typename TTypes<T>::Matrix& output)
 {
   const int64 indices_size = indices.dimension(0);
@@ -95,9 +95,12 @@ Status CountAndCopy(const typename TTypes<T>::ConstMatrix& params,
     }
   }
 
+  //--Declare padding element as a double, and set it to default value 0.0--//
+  double pad_elem = 0.0;
+
   //--Vector containing padding elements. Size of this vector = maximum no. of
   // consecutive padding columns in the output tensor--//
-  gtl::InlinedVector<T, 4> pad_elem_vec(max_cons_pad_cols, pad_elem[0]);
+  gtl::InlinedVector<T, 4> pad_elem_vec(max_cons_pad_cols, (T)pad_elem);
 
 //--Debugging flag disabled by default--//
 #if EXEC_TIME_CALC
@@ -160,11 +163,11 @@ struct ScatterColumnsFunctorCPU
 {
   Status operator()(const typename TTypes<T>::ConstMatrix& params,
                     const typename TTypes<IndT>::ConstFlat& indices,
-                    const IndT& num_out_cols, const T* pad_elem,
+                    const IndT& num_out_cols,
                     typename TTypes<T>::Matrix& output)
   {
-    return CountAndCopy<T, IndT>(params, indices, num_out_cols,
-                                 pad_elem, output);
+    return CountAndCopy<T, IndT>(params, indices,
+                                 num_out_cols, output);
   }
 };
 
@@ -174,7 +177,7 @@ struct ScatterColumnsFunctor
   Status operator()(const Device& dvc,
                     const typename TTypes<T>::ConstMatrix& params,
                     const typename TTypes<IndT>::ConstFlat& indices,
-                    const IndT& num_out_cols, const T* pad_elem,
+                    const IndT& num_out_cols,
                     typename TTypes<T>::Matrix& output);
 };
 
@@ -184,11 +187,11 @@ struct ScatterColumnsFunctor<CPUDevice, T, IndT>
   Status operator()(const CPUDevice& dvc,
                     const typename TTypes<T>::ConstMatrix& params,
                     const typename TTypes<IndT>::ConstFlat& indices,
-                    const IndT& num_out_cols, const T* pad_elem,
+                    const IndT& num_out_cols,
                     typename TTypes<T>::Matrix& output)
   {
-    return ScatterColumnsFunctorCPU<T, IndT>()(params, indices, num_out_cols,
-                                               pad_elem, output);
+    return ScatterColumnsFunctorCPU<T, IndT>()(params, indices,
+                                               num_out_cols, output);
   }
 };
 

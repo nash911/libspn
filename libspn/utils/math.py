@@ -178,7 +178,6 @@ def scatter_cols(params, indices, num_out_cols, name=None):
                 # if conf.custom_scatter_cols:
                 #     return ops.scatter_cols(
                 #         params, indices,
-                #         pad_elem=tf.constant(0, dtype=params.dtype),
                 #         num_out_col=num_out_cols)
                 # else:
                 return tf.pad(params, [[0, 0],
@@ -189,7 +188,6 @@ def scatter_cols(params, indices, num_out_cols, name=None):
                 if conf.custom_scatter_cols:
                     return ops.scatter_cols(
                         params, indices,
-                        pad_elem=tf.constant(0, dtype=params.dtype),
                         num_out_col=num_out_cols)
                 else:
                     with_zeros = tf.concat(values=([0], params), axis=0)
@@ -200,7 +198,6 @@ def scatter_cols(params, indices, num_out_cols, name=None):
                 if conf.custom_scatter_cols:
                     return ops.scatter_cols(
                         params, indices,
-                        pad_elem=tf.constant(0, dtype=params.dtype),
                         num_out_col=num_out_cols)
                 else:
                     zero_col = tf.zeros((tf.shape(params)[0], 1),

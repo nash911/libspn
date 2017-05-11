@@ -17,11 +17,11 @@ typedef Eigen::GpuDevice GPUDevice;
 template <typename T>
 __global__ void OutputPadInitKernel(T* output,
                                     const int64 output_size,
-                                    const T* pad_elem)
+                                    const T pad_elem)
 {
   CUDA_1D_KERNEL_LOOP(i, output_size)
   {
-    output[i] = ldg(pad_elem);
+    output[i] = pad_elem;
   }
 }
 
@@ -52,7 +52,7 @@ struct ScatterColumnsFunctor<GPUDevice, T, IndT>
   Status operator()(const GPUDevice& d,
                     const typename TTypes<T>::ConstMatrix& params,
                     const typename TTypes<IndT>::ConstFlat& indices,
-                    const IndT& num_out_cols, const T* pad_elem,
+                    const IndT& num_out_cols,
                     typename TTypes<T>::Matrix& output)
   {
     const int64 output_size = output.size();
@@ -71,11 +71,14 @@ struct ScatterColumnsFunctor<GPUDevice, T, IndT>
     cudaEventRecord(start, 0);
 #endif  // EXEC_TIME_CALC
 
+    //--Declare padding element as a double, and set it to default value 0.0--//
+    double pad_elem = 0.0;
+
     //--Initialize output tensor with pad_element--//
     CudaLaunchConfig config = GetCudaLaunchConfig(params_size, d);
     OutputPadInitKernel<T>
         <<<config.block_count, config.thread_per_block, 0, d.stream()>>>(
-        output.data(), output_size, pad_elem);
+        output.data(), output_size, (T)pad_elem);
 
     config = GetCudaLaunchConfig(params_size, d);
     ScatterColumnsOpKernel<T, IndT>
