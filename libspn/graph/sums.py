@@ -282,7 +282,7 @@ class Sums(OpNode):
         # Prepare values
         weight_tensor, ivs_tensor, *value_tensors = self._gather_input_tensors(
          weight_tensor, ivs_tensor, *value_tensors)
-        values = utils.concat_maybe(1, value_tensors)
+        values = utils.concat_maybe(value_tensors, 1)
 
         # Shape of values tensor = [Batch, (num_sums * num_vals)]
         # First, split the values tensor into 'num_sums' smaller tensors.

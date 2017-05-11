@@ -281,7 +281,7 @@ class ParallelSums(OpNode):
         # Prepare values
         weight_tensor, ivs_tensor, *value_tensors = self._gather_input_tensors(
             weight_tensor, ivs_tensor, *value_tensors)
-        values = utils.concat_maybe(1, value_tensors)
+        values = utils.concat_maybe(value_tensors, 1)
         return weight_tensor, ivs_tensor, values
 
     def _compute_value(self, weight_tensor, ivs_tensor, *value_tensors):

@@ -159,7 +159,7 @@ class PermProducts(OpNode):
         # Prepare values
         value_tensors = self._gather_input_tensors(*value_tensors)
         if len(value_tensors) > 1:
-            values = tf.concat_v2(value_tensors, 1)
+            values = tf.concat(values=value_tensors, axis=1)
         else:
             values = value_tensors[0]
         if self._num_prods > 1:
@@ -250,7 +250,7 @@ class PermProducts(OpNode):
         concat_counts = []
         # Concat counts per input, based on size of each input.
         for s in range(len(self._input_sizes)):
-            concat_counts.append(tf.concat_v2(summed_counts[sum(self._input_sizes[0:s]):
+            concat_counts.append(tf.concat(values=summed_counts[sum(self._input_sizes[0:s]):
                                  sum(self._input_sizes[0:s+1])], axis=1))
 
         value_counts = zip(concat_counts, value_values)
