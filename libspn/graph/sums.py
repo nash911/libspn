@@ -355,7 +355,7 @@ class Sums(OpNode):
         # 2D tensor, and then split into value inputs
         _, _, *value_sizes = self.get_input_sizes(None, None, *value_values)
         max_counts_slices = tf.split(max_counts, self._num_sums, 0)
-        max_counts_concat = tf.squeeze(tf.concat_v2(max_counts_slices, axis=-1), axis=0)  # For IVs
+        max_counts_concat = tf.squeeze(tf.concat(max_counts_slices, axis=-1), axis=0)  # For IVs
         max_counts_split = tf.split(max_counts_concat, value_sizes, 1)  # For values
         # Sum up max counts batch-wise as counts of Weights
         max_counts_weights = tf.reduce_sum(max_counts, axis=-2, keep_dims=False)
