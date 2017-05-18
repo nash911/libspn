@@ -1,0 +1,61 @@
+Params:
+- batch_size=200
+- input_size=100
+- num_sums=100
+- num_layers=10
+- num_runs=10
+
+Running tests:
+--> Sum: on_gpu=False, with_ivs=Yes, with_ivs=No, params_shape=(200, 100), indices_shape=1
+--> Sum: on_gpu=False, with_ivs=Yes, with_ivs=Yes, params_shape=(200, 100), indices_shape=1
+2017-05-18 19:08:06.547318: I tensorflow/core/common_runtime/gpu/gpu_device.cc:977] Creating TensorFlow device (/gpu:0) -> (device: 0, name: GeForce GTX 960M, pci bus id: 0000:01:00.0)
+--> Sum: on_gpu=True, with_ivs=Yes, with_ivs=No, params_shape=(200, 100), indices_shape=1
+2017-05-18 19:08:50.240104: I tensorflow/core/common_runtime/gpu/gpu_device.cc:977] Creating TensorFlow device (/gpu:0) -> (device: 0, name: GeForce GTX 960M, pci bus id: 0000:01:00.0)
+--> Sum: on_gpu=True, with_ivs=Yes, with_ivs=Yes, params_shape=(200, 100), indices_shape=1
+2017-05-18 19:09:35.479797: I tensorflow/core/common_runtime/gpu/gpu_device.cc:977] Creating TensorFlow device (/gpu:0) -> (device: 0, name: GeForce GTX 960M, pci bus id: 0000:01:00.0)
+--> Sums: on_gpu=False, with_ivs=Yes, with_ivs=No, params_shape=(200, 10000), indices_shape=1
+2017-05-18 19:09:43.797485: I tensorflow/core/common_runtime/gpu/gpu_device.cc:977] Creating TensorFlow device (/gpu:0) -> (device: 0, name: GeForce GTX 960M, pci bus id: 0000:01:00.0)
+--> Sums: on_gpu=False, with_ivs=Yes, with_ivs=Yes, params_shape=(200, 10000), indices_shape=1
+2017-05-18 19:09:47.182339: I tensorflow/core/common_runtime/gpu/gpu_device.cc:977] Creating TensorFlow device (/gpu:0) -> (device: 0, name: GeForce GTX 960M, pci bus id: 0000:01:00.0)
+--> Sums: on_gpu=True, with_ivs=Yes, with_ivs=No, params_shape=(200, 10000), indices_shape=1
+2017-05-18 19:09:50.036508: I tensorflow/core/common_runtime/gpu/gpu_device.cc:977] Creating TensorFlow device (/gpu:0) -> (device: 0, name: GeForce GTX 960M, pci bus id: 0000:01:00.0)
+--> Sums: on_gpu=True, with_ivs=Yes, with_ivs=Yes, params_shape=(200, 10000), indices_shape=1
+2017-05-18 19:09:51.424594: I tensorflow/core/common_runtime/gpu/gpu_device.cc:977] Creating TensorFlow device (/gpu:0) -> (device: 0, name: GeForce GTX 960M, pci bus id: 0000:01:00.0)
+--> ParallelSums: on_gpu=False, with_ivs=Yes, with_ivs=No, params_shape=(200, 100), indices_shape=1
+2017-05-18 19:09:52.163776: I tensorflow/core/common_runtime/gpu/gpu_device.cc:977] Creating TensorFlow device (/gpu:0) -> (device: 0, name: GeForce GTX 960M, pci bus id: 0000:01:00.0)
+--> ParallelSums: on_gpu=False, with_ivs=Yes, with_ivs=Yes, params_shape=(200, 100), indices_shape=1
+2017-05-18 19:09:53.488066: I tensorflow/core/common_runtime/gpu/gpu_device.cc:977] Creating TensorFlow device (/gpu:0) -> (device: 0, name: GeForce GTX 960M, pci bus id: 0000:01:00.0)
+--> ParallelSums: on_gpu=True, with_ivs=Yes, with_ivs=No, params_shape=(200, 100), indices_shape=1
+2017-05-18 19:09:55.045108: I tensorflow/core/common_runtime/gpu/gpu_device.cc:977] Creating TensorFlow device (/gpu:0) -> (device: 0, name: GeForce GTX 960M, pci bus id: 0000:01:00.0)
+--> ParallelSums: on_gpu=True, with_ivs=Yes, with_ivs=Yes, params_shape=(200, 100), indices_shape=1
+2017-05-18 19:09:55.704012: I tensorflow/core/common_runtime/gpu/gpu_device.cc:977] Creating TensorFlow device (/gpu:0) -> (device: 0, name: GeForce GTX 960M, pci bus id: 0000:01:00.0)
+
+-----------------------
+Sum
+-----------------------
+CPU          op Indices   IVs  size  setup_time  first_run_time  rest_run_time    correct
+            Sum   Yes      No 17820    35296.41          588.79           4.85       True
+            Sum   Yes     Yes 18846    36267.83          626.25           5.58       True
+GPU          op Indices   IVs  size  setup_time  first_run_time  rest_run_time    correct
+            Sum   Yes      No 17820    36535.15          809.16           8.14       True
+            Sum   Yes     Yes 18846    37474.84          781.02           9.94       True
+
+-----------------------
+Sums
+-----------------------
+CPU          op Indices   IVs  size  setup_time  first_run_time  rest_run_time    correct
+           Sums   Yes      No   316      740.60          209.01         138.99       True
+           Sums   Yes     Yes   382     1802.81          217.32         197.50       True
+GPU          op Indices   IVs  size  setup_time  first_run_time  rest_run_time    correct
+           Sums   Yes      No   316      727.30           43.85          28.70       True
+           Sums   Yes     Yes   382      986.46           56.64          34.76       True
+
+-----------------------
+ParallelSums
+-----------------------
+CPU          op Indices   IVs  size  setup_time  first_run_time  rest_run_time    correct
+   ParallelSums   Yes      No   308      243.92           81.83          66.67       True
+   ParallelSums   Yes     Yes   334      546.84          130.71         112.52       True
+GPU          op Indices   IVs  size  setup_time  first_run_time  rest_run_time    correct
+   ParallelSums   Yes      No   308      308.78           15.31           9.21       True
+   ParallelSums   Yes     Yes   334      465.54           25.24          14.74       True
