@@ -16,226 +16,94 @@ import colorama as col
 import sys
 col.init()
 
+red = col.Fore.RED
+blue = col.Fore.BLUE
+green = col.Fore.GREEN
+yellow = col.Fore.YELLOW
+magenta = col.Fore.MAGENTA
 
-def print1(str, file):
+def print1(str, file, color=yellow):
     if file:
         print(str, file=file)
-    print(col.Fore.YELLOW + str + col.Style.RESET_ALL)
+    print(color + str + col.Style.RESET_ALL)
 
 
 def print2(str, file):
     if file:
         print(str, file=file)
-    print(col.Fore.BLUE + str + col.Style.RESET_ALL)
+    print(blue + str + col.Style.RESET_ALL)
 
 
-class Sum:
+class Ops:
 
-    def create_place_holders(inputs, ivs_inp, ivs_hidden, num_sums):
-        # Create placeholders for inputs and ivs
-        input_size = inputs.shape[1]
-        inputs_pl = spn.ContVars(num_vars=input_size)
-
-        if ivs_inp is not None:
-            ivs_inp_pl = spn.IVs(num_vars=1, num_vals=input_size)
-            ivs_hiden_pl = spn.IVs(num_vars=1, num_vals=num_sums)
-        else:
-            ivs_inp_pl = None
-            ivs_hiden_pl = None
-
-        return inputs_pl, ivs_inp_pl, ivs_hiden_pl
-
-    def create_graph(inputs, indices_inp, indices_hidden, ivs_inp, ivs_hidden,
-                     num_sums, num_layers):
-        if indices_inp is None:
+    def sum(inputs, indices, ivs, num_sums, inf_type, output=None):
+        if indices is None:
             inputs = [inputs]
         else:
-            inputs = [(inputs, indices_inp)]
+            inputs = [(inputs, indices)]
 
-        L = [] # List of layers
+        # Generate 'num_sums' Sum nodes, connecting each to inputs and ivs
+        s = []
+        for _ in range(0, num_sums):
+            s = s + [spn.Sum(*inputs, ivs=ivs)]
+            # Generate weights for each Sum node
+            s[-1].generate_weights()
 
-        # Create 'num_layers' layers of Sum nodes, connecting each later to
-        # the layer below
-        for l in range(0, num_layers):
-            l_n = [] # List os Sum nodes in a single later
-            # Generate 'num_sums' Sum nodes, connecting each to inputs/later below
-            # and their respective ivs
-            for _ in range(0, num_sums):
-                if l == 0: # First layer connected to inputs and Ivs
-                    l_n = l_n + [spn.Sum(*inputs, ivs=ivs_inp)]
-                else: # Second layer onwards connected to the layer below
-                    l_n = l_n + [spn.Sum(*L[-1], ivs=ivs_hidden)]
-
-                # Generate weights for each Sum node
-                l_n[-1].generate_weights()
-
-            if indices_hidden is None or l == num_layers-1: # No indices for the root node
-                L.append(l_n)
-            else:
-                L.append([(s, indices_hidden) for s in l_n])
-
-        # Connect all sum nodes in the top most hidden layer to a single root
-        # Sum node and generate its weights
-        root = spn.Sum(*L[-1])
+        # Connect all sum nodes to a single root Sum node and generate its weights
+        root = spn.Sum(*s)
         root.generate_weights()
-        return root
 
-    def true_value(inputs, ivs_inp, num_sums, num_layers):
-        input_size = inputs.shape[1]
-        input_weight = 1.0 / input_size
-        hidden_weight = 1.0 / num_sums
+        return spn.initialize_weights(root), root.get_value(inference_type=inf_type)
 
-        # Compute true output with numpy
-        if ivs_inp is None:
-            true_value = np.sum((inputs * input_weight), axis=1, keepdims=True)
-        else:
-            ivs_inp_oh = np.eye(input_size)[np.squeeze(ivs_inp)]
-            true_value = np.sum((inputs * ivs_inp_oh) * input_weight, axis=1,
-                                keepdims=True) * np.power(hidden_weight,
-                                num_layers) * num_sums
-        return true_value
-
-class Sums:
-
-    def create_place_holders(inputs, ivs_inp, ivs_hidden, num_sums):
-        # Create placeholders for inputs and ivs
-        input_size = inputs.shape[1]
-        inputs_pl = spn.ContVars(num_vars=input_size)
-        if ivs_inp is not None:
-            ivs_inp_pl = spn.IVs(num_vars=num_sums,
-                                 num_vals=int(input_size / num_sums))
-            ivs_hidden_pl = spn.IVs(num_vars=num_sums, num_vals=num_sums)
-        else:
-            ivs_inp_pl = None
-            ivs_hidden_pl = None
-        return inputs_pl, ivs_inp_pl, ivs_hidden_pl
-
-    def create_graph(inputs, indices_inp, indices_hidden, ivs_inp, ivs_hidden,
-             num_sums, num_layers):
-        if indices_inp is None:
+    def sums(inputs, indices, ivs, num_sums, inf_type, output=None):
+        if indices is None:
             inputs = [inputs]
         else:
-            inputs = [(inputs, indices_inp)]
+            inputs = [(inputs, indices)]
 
-        L = [] # List of layers
+        # Generate a single Sums node, modeling 'num_sums' sum nodes within,
+        # connecting it to inputs and ivs
+        s = spn.Sums(*inputs, num_sums=num_sums, ivs=ivs)
+        # Generate weights of the Sums node
+        s.generate_weights()
 
-        # Create a 'num_layers' layers with each layer containing a single Sums
-        # node, modeling 'num_sums' sums within
-        for l in range(0, num_layers):
-            if l == 0: # First layer connected to inputs and Ivs
-                l_n = spn.Sums(*inputs, num_sums=num_sums, ivs=ivs_inp)
-            else: # Second layer onwards connected to the layer below
-                l_n = spn.Sums(*[L[-1] for _ in range(num_sums)],
-                               num_sums=num_sums, ivs=ivs_hidden)
-
-            # Generate weights for each Sums node
-            l_n.generate_weights()
-
-            if indices_hidden is None or l == num_layers-1: # No indices for the root node
-                L.append(l_n)
-            else:
-                L.append((l_n, indices_hidden))
-
-        # Connect the Sums node in the top most hidden layer to a single root
-        # Sum node and generate its weights
-        root = spn.Sum(L[-1])
+        # Connect the Sums nodes to a single root Sum node and generate its weights
+        root = spn.Sum(s)
         root.generate_weights()
-        return root
 
-    def true_value(inputs, ivs_inp, num_sums, num_layers):
-        batch_size = inputs.shape[0]
-        input_size = int(inputs.shape[1] / num_sums)
-        input_weight = 1.0 / input_size
-        hidden_weight = 1.0 / num_sums
-        input_slice = np.split(inputs, num_sums, axis=1)[0]
+        return spn.initialize_weights(root), root.get_value(inference_type=inf_type)
 
-        # Compute true output with numpy
-        if ivs_inp is None:
-            true_value = np.sum((input_slice * input_weight), axis=1,
-                                keepdims=True)# * np.power((hidden_weight * num_sums), num_layers)
-        else:
-            ivs_inp_slice = np.split(ivs_inp, num_sums, axis=1)[0]
-            ivs_inp_oh = np.eye(input_size)[np.squeeze(ivs_inp_slice)]
-            true_value = np.sum((input_slice * ivs_inp_oh) * input_weight, axis=1,
-                                keepdims=True) * np.power(hidden_weight,
-                                num_layers) * num_sums
-        return true_value
-
-
-class ParallelSums:
-
-    def create_place_holders(inputs, ivs_inp, ivs_hidden, num_sums):
-        # Create placeholders for inputs and ivs
-        input_size = inputs.shape[1]
-        inputs_pl = spn.ContVars(num_vars=input_size)
-        if ivs_inp is not None:
-            ivs_inp_pl = spn.IVs(num_vars=num_sums, num_vals=input_size)
-            ivs_hidden_pl = spn.IVs(num_vars=num_sums, num_vals=num_sums)
-        else:
-            ivs_inp_pl = None
-            ivs_hidden_pl = None
-        return inputs_pl, ivs_inp_pl, ivs_hidden_pl
-
-    def create_graph(inputs, indices_inp, indices_hidden, ivs_inp, ivs_hidden,
-             num_sums, num_layers):
-        if indices_inp is None:
+    def parallel_sums(inputs, indices, ivs, num_sums, inf_type, output=None):
+        if indices is None:
             inputs = [inputs]
         else:
-            inputs = [(inputs, indices_inp)]
+            inputs = [(inputs, indices)]
 
-        L = [] # List of layers
+        # Generate a single ParallelSums node, modeling 'num_sums' sum nodes
+        # within, connecting it to inputs and ivs
+        s = spn.ParallelSums(*inputs, num_sums=num_sums, ivs=ivs)
+        # Generate weights of the Parallel§Sums node
+        s.generate_weights()
 
-        # Create a 'num_layers' layers with each layer containing a single
-        # ParallelSums node, modeling 'num_sums' sums within
-        for l in range(0, num_layers):
-            if l == 0: # First layer connected to inputs and Ivs
-                l_n = spn.ParallelSums(*inputs, num_sums=num_sums, ivs=ivs_inp)
-            else: # Second layer onwards connected to the layer below
-                l_n = spn.ParallelSums(L[-1], num_sums=num_sums, ivs=ivs_hidden)
-
-            # Generate weights for each Sums node
-            l_n.generate_weights()
-
-            if indices_hidden is None or l == num_layers-1: # No indices for the root node
-                L.append(l_n)
-            else:
-                L.append((l_n, indices_hidden))
-
-        # Connect the ParallelSums node in the top most hidden layer to a single
-        # root Sum node and generate its weights
-        root = spn.Sum(L[-1])
+        # Connect the ParallelSums nodes to a single root Sum node and generate
+        # its weights
+        root = spn.Sum(s)
         root.generate_weights()
-        return root
 
-    def true_value(inputs, ivs_inp, num_sums, num_layers):
-        input_size = int(inputs.shape[1])
-        input_weight = 1.0 / input_size
-        hidden_weight = 1.0 / num_sums
+        return spn.initialize_weights(root), root.get_value(inference_type=inf_type)
 
-        # Compute true output with numpy
-        if ivs_inp is None:
-            true_value = np.sum((inputs * input_weight), axis=1, keepdims=True)
-        else:
-            ivs_inp_slice = np.split(ivs_inp, num_sums, axis=1)[0]
-            ivs_inp_oh = np.eye(input_size)[np.squeeze(ivs_inp_slice)]
-            true_value = np.sum((inputs * ivs_inp_oh) * input_weight, axis=1,
-                                keepdims=True) * np.power(hidden_weight,
-                                num_layers) * num_sums
-
-        return true_value
-
-
-class NodeTestResult:
+class OpTestResult:
     """Result of a single test of a single op."""
 
-    def __init__(self, node_name, on_gpu, with_indices, with_ivs, graph_size,
-                 setup_time, run_times, output_correct):
-        self.node_name = node_name
+    def __init__(self, op_name, on_gpu, graph_size, indices, ivs, setup_time,
+                 weights_init_time, run_times, output_correct):
+        self.op_name = op_name
         self.on_gpu = on_gpu
-        self.with_indices = with_indices
-        self.with_ivs = with_ivs
         self.graph_size = graph_size
+        self.indices = indices
+        self.ivs = ivs
         self.setup_time = setup_time
+        self.weights_init_time = weights_init_time
         self.run_times = run_times
         self.output_correct = output_correct
 
@@ -250,17 +118,17 @@ class TestResults:
 
     def print(self, file):
         def get_header(dev):
-            return ("%3s %11s %5s %5s %5s %11s %15s %14s %10s" %
-                    (dev, 'op', 'Indices', 'IVs', 'size', 'setup_time',
-                     'first_run_time', 'rest_run_time', 'correct'))
+            return ("%3s %11s %5s %5s %5s %11s %15s %15s %14s %10s" %
+                    (dev, 'op', 'size', 'indices', 'ivs', 'setup_time',
+                     'weights_init_time', 'first_run_time', 'rest_run_time',
+                     'correct'))
 
         def get_res(res):
             """Helper function printing a single result."""
-            return ("%15s %5s %7s %5d %11.2f %15.2f %14.2f %10s" %
-                    (res.node_name, ("Yes" if res.with_indices else "No"),
-                    ("Yes" if res.with_ivs else "No"),
-                     res.graph_size,
-                     res.setup_time * 1000, res.run_times[0] * 1000,
+            return ("%15s %5d %5s %7s %11.2f %15.2f %15.2f %14.2f %10s" %
+                    (res.op_name, res.graph_size, res.indices, res.ivs,
+                     res.setup_time * 1000, res.weights_init_time * 1000,
+                     res.run_times[0] * 1000,
                      np.mean(res.run_times[1:]) * 1000,
                      res.output_correct))
 
@@ -269,185 +137,242 @@ class TestResults:
         print1("%s" % self.test_name, file)
         print1("-----------------------", file)
         print1(get_header("CPU"), file)
-        for res in sorted(self.cpu_results, key=lambda x: x.node_name):
-            print1(get_res(res), file)
+        for res in sorted(self.cpu_results, key=lambda x: len(x.op_name)):
+            print1(get_res(res), file, (red if res.indices is "No" else green if
+                   res.ivs is "No" else magenta))
         print1(get_header("GPU"), file)
-        for res in sorted(self.gpu_results, key=lambda x: x.node_name):
-            print1(get_res(res), file)
+        for res in sorted(self.gpu_results, key=lambda x: len(x.op_name)):
+            print1(get_res(res), file, (red if res.indices is "No" else green if
+                   res.ivs is "No" else magenta))
 
 
 class PerformanceTest:
 
-    def __init__(self, batch_size, input_size, num_sums,
-                 num_layers, num_runs, without_cpu,
-                 without_gpu, log_devs, file):
-        self.batch_size = batch_size
-        self.input_size = input_size
+    def __init__(self, num_input_rows, num_input_cols, num_sums, num_ops,
+                 num_runs,  without_cpu, without_gpu, log_devs, file):
+        self.num_input_rows = num_input_rows
+        self.num_input_cols = num_input_cols
         self.num_sums = num_sums
-        self.num_layers = num_layers
+        self.num_ops = num_ops
         self.num_runs = num_runs
         self.without_cpu = without_cpu
         self.without_gpu = without_gpu
         self.log_devs = log_devs
         self.file = file
 
-
         print1("Params:", file)
-        print1("- batch_size=%s" % batch_size, file)
-        print1("- input_size=%s" % input_size, file)
+        print1("- num_input_rows=%s" % num_input_rows, file)
+        print1("- num_input_cols=%s" % num_input_cols, file)
         print1("- num_sums=%s" % num_sums, file)
-        print1("- num_layers=%s" % num_layers, file)
+        print1("- num_ops=%s" % num_ops, file)
         print1("- num_runs=%s" % num_runs, file)
         print1("", file=file)
 
-    def _run_op_test(self, node, inputs, indices_inp, indices_hidden,
-                     ivs_inp, ivs_hidden, on_gpu):
+
+    def _true_output(self, op_fun, inputs, indices, ivs=None,
+                     inf_type=None):
+        input_size = inputs.shape[1]
+
+        if indices is not None:
+            inputs = inputs[:, indices]
+
+        if inf_type == spn.InferenceType.MARGINAL:
+            np_op = np.sum
+        elif inf_type == spn.InferenceType.MPE:
+            np_op = np.amax
+        else:
+            sys.exit('ERROR: Incorrect inference type: ', inf_type)
+
+        if op_fun is Ops.sum:
+            input_size = inputs.shape[1]
+            weight = 1.0 / input_size
+            input_slice = inputs
+            ivs_slice = ivs
+        elif op_fun is Ops.sums:
+            input_size = int(inputs.shape[1] / self.num_sums)
+            weight = 1.0 / input_size
+            input_slice = np.split(inputs, self.num_sums, axis=1)[0]
+            if ivs is not None:
+                ivs_slice = np.split(ivs, self.num_sums, axis=1)[0]
+        elif op_fun is Ops.parallel_sums:
+            weight = 1.0 / input_size
+            input_slice = inputs
+            if ivs is not None:
+                ivs_slice = np.split(ivs, self.num_sums, axis=1)[0]
+
+        root_weight = 1.0 / self.num_sums
+        inputs_array = np.stack([input_slice for _ in range(self.num_sums)], axis=0)
+
+        # Compute true output with numpy
+        if ivs is None:
+            return np_op(np.transpose(np_op((inputs_array * weight), axis=-1)) \
+                         * root_weight, axis=-1, keepdims=True)
+        else:
+            ivs_oh = np.eye(input_size)[np.squeeze(ivs_slice)]
+            return np_op(np.transpose(np_op((inputs_array * ivs_oh * weight),
+                         axis=-1)) * root_weight, axis=-1, keepdims=True)
+
+
+    def _run_op_test(self, op_fun, inputs, indices=None, ivs=None,
+                     inf_type=spn.InferenceType.MARGINAL, on_gpu=True):
         """Run a single test for a single op."""
         # Preparations
-        node_name = node.__name__
+        op_name = op_fun.__name__
         device_name = '/gpu:0' if on_gpu else '/cpu:0'
 
         # Print
-        print2("--> %s: on_gpu=%s, with_ivs=%s, with_ivs=%s, params_shape=%s, indices_shape=%s"
-               % (node_name, on_gpu, ("No" if indices_inp is None else "Yes"),
-                  ("No" if ivs_hidden is None else "Yes"), inputs.shape, 1),
-                  self.file)
+        print2("--> %s: on_gpu=%s, inputs_shape=%s, indices=%s, ivs=%s, inference=%s"
+               % (op_name, on_gpu, inputs.shape, ("No" if indices is None else "Yes"),
+                  ("No" if ivs is None else "Yes"), ("MPE" if inf_type == \
+                  spn.InferenceType.MARGINAL else "MARGINAL")), self.file)
 
-        # Compute true output with numpy
-        true_value_out = node.true_value(inputs, ivs_inp, self.num_sums,
-                                         self.num_layers)
+        input_size = inputs.shape[1]
 
-        # Clear any previous graph
+        # Compute true output
+        true_out = self._true_output(op_fun, inputs, indices, ivs, inf_type)
+
+        # Create graph
         tf.reset_default_graph()
         with tf.device(device_name):
-            # Create input and IVs
-            inputs_pl, ivs_inp_pl, ivs_hidden_pl = \
-              node.create_place_holders(inputs, ivs_inp, ivs_hidden, self.num_sums)
-
-            # Create graph
+            # Create input
+            inputs_pl = spn.ContVars(num_vars=input_size)
+            # Create IVs
+            if ivs is None:
+                ivs_pl = None
+            else:
+                if op_fun is Ops.sum:
+                    ivs_pl = spn.IVs(num_vars=1, num_vals=input_size)
+                elif op_fun is Ops.sums:
+                    ivs_pl = spn.IVs(num_vars=self.num_sums,
+                                         num_vals=int(input_size / self.num_sums))
+                elif op_fun is Ops.parallel_sums:
+                    ivs_pl = spn.IVs(num_vars=self.num_sums, num_vals=input_size)
+            # Create ops
             start_time = time.time()
-            root = node.create_graph(inputs_pl, indices_inp, indices_hidden,
-                                     ivs_inp_pl, ivs_hidden_pl, self.num_sums,
-                                     self.num_layers)
-            ops = root.get_value(inference_type=spn.InferenceType.MARGINAL)
+            init_ops, ops = op_fun(inputs_pl, indices, ivs_pl, self.num_sums,
+                                   inf_type)
+            for _ in range(self.num_ops - 1):
+                # The tuple ensures that the next op waits for the output
+                # of the previous op, effectively stacking the ops
+                # but using the original input every time
+                init_ops, ops = op_fun(inputs_pl, indices, ivs_pl, self.num_sums,
+                                       inf_type, tf.tuple([ops])[0])
             setup_time = time.time() - start_time
-
         # Get num of graph ops
         graph_size = len(tf.get_default_graph().get_operations())
-
-        # Run multiple times
+        # Run op multiple times
         output_correct = True
         with tf.Session(config=tf.ConfigProto(
                 allow_soft_placement=False,
                 log_device_placement=self.log_devs)) as sess:
-            #Initialize weights of all the sum nodes in the graph
-            spn.initialize_weights(root).run()
-
-            # Create feed dictionary
-            feed = {inputs_pl: inputs}
-            if ivs_inp is not None:
-                feed[ivs_inp_pl] = ivs_inp
-                feed[ivs_hidden_pl] = ivs_hidden
+            # Initialize weights of all the sum nodes in the graph
+            start_time = time.time()
+            init_ops.run()
+            weights_init_time = time.time() - start_time
 
             run_times = []
+            # Create feed dictionary
+            feed = {inputs_pl: inputs}
+            if ivs is not None:
+                feed[ivs_pl] = ivs
             for n in range(self.num_runs):
                 # Run
                 start_time = time.time()
-                value_out = sess.run(ops, feed_dict=feed)
+                out = sess.run(ops, feed_dict=feed)
                 run_times.append(time.time() - start_time)
-
                 # Test value
                 try:
-                    np.testing.assert_array_almost_equal(value_out, true_value_out,
-                                                         decimal=5)
+                    np.testing.assert_array_almost_equal(out, true_out)
                 except AssertionError:
                     output_correct = False
+                    if op_fun == Ops.sum:
+                        print("inputs: ", inputs)
+                        print("indices: ", indices)
+                        print("ivs: ", ivs)
+                        print("true_out: ", true_out)
+                        print("out: ", out)
         # Return stats
-        return NodeTestResult(node_name, on_gpu, (False if indices_inp is None else True),
-                              (False if ivs_hidden is None else True), graph_size,
-                              setup_time, run_times, output_correct)
+        return OpTestResult(op_name, on_gpu, graph_size, ("No" if indices is None else "Yes"),
+                            ("No" if ivs is None else "Yes"), setup_time,
+                            weights_init_time, run_times, output_correct)
 
-    def _run_test(self, test_name, nodes, inputs, indices_inp, indices_hidden,
-                  ivs_inp, ivs_hidden):
+    def _run_test(self, test_name, op_funs, inputs, indices, ivs, inf_type):
         """Run a single test for multiple ops and devices."""
         cpu_results = []
         gpu_results = []
-        for node in nodes:
+        for op_fun, inp, ind, iv in zip(op_funs, inputs, indices, ivs):
             if not self.without_cpu:
-                cpu_results.append(
-                    self._run_op_test(node, inputs, indices_inp, indices_hidden,
-                                      None, None, on_gpu=False))
-                cpu_results.append(
-                    self._run_op_test(node, inputs, indices_inp, indices_hidden,
-                                      ivs_inp, ivs_hidden,
+                cpu_results.append( # Indices = No, IVs = No
+                    self._run_op_test(op_fun, inp, None, None, inf_type=inf_type,
+                                      on_gpu=False))
+                cpu_results.append( # Indices = Yes, IVs = No
+                    self._run_op_test(op_fun, inp, ind, None, inf_type=inf_type,
+                                      on_gpu=False))
+                cpu_results.append( # Indices = Yes, IVs = Yes
+                    self._run_op_test(op_fun, inp, ind, iv, inf_type=inf_type,
                                       on_gpu=False))
             if not self.without_gpu:
-                gpu_results.append(
-                    self._run_op_test(node, inputs, indices_inp, indices_hidden,
-                                      None, None, on_gpu=True))
-                gpu_results.append(
-                    self._run_op_test(node, inputs, indices_inp, indices_hidden,
-                                      ivs_inp, ivs_hidden,
+                gpu_results.append( # Indices = No, IVs = No
+                    self._run_op_test(op_fun, inp, None, None, inf_type=inf_type,
+                                      on_gpu=True))
+                gpu_results.append( # Indices = Yes, IVs = No
+                    self._run_op_test(op_fun, inp, ind, None, inf_type=inf_type,
+                                      on_gpu=True))
+                gpu_results.append( # Indices = Yes, IVs = Yes
+                    self._run_op_test(op_fun, inp, ind, iv, inf_type=inf_type,
                                       on_gpu=True))
         return TestResults(test_name, cpu_results, gpu_results)
 
-
-    def _run_all_nodes(self):
-        """Run all 2D tests."""
+    def _run_1d(self):
+        """Run all 1D tests."""
 
         results = []
+        # Sum
+        sum_inputs = np.random.rand(self.num_input_rows, self.num_input_cols)
+        sum_indices = list(range(self.num_input_cols-1, -1, -1))
+        sum_ivs = np.expand_dims(np.random.randint(self.num_input_cols,
+                                                   size=self.num_input_rows),
+                                                   axis=1)
 
-        inputs = np.random.rand(self.batch_size, self.input_size)
-        indices_inp = list(range(self.input_size))
-        indices_hidden = [0]
-        ivs_inp = np.expand_dims(np.random.randint(self.input_size,
-                                               size=self.batch_size), axis=1)
-        ivs_hidden = np.expand_dims(np.random.randint(self.num_sums,
-                                               size=self.batch_size), axis=1)
-        r = self._run_test('Sum',
-                           [Sum],
-                           inputs, indices_inp, indices_hidden,
-                           ivs_inp, ivs_hidden)
+        # Sums
+        sums_inputs = np.tile(np.random.rand(self.num_input_rows,
+                                             self.num_input_cols), self.num_sums)
+        sums_indices = list(range((self.num_input_cols * self.num_sums)-1, -1, -1))
+        sums_ivs = np.tile(np.expand_dims(np.random.randint(self.num_input_cols,
+                           size=self.num_input_rows), axis=1), (1, self.num_sums))
+
+        # ParallelSums
+        parallel_sums_inputs = np.random.rand(self.num_input_rows, self.num_input_cols)
+        parallel_sums_indices = list(range(self.num_input_cols-1, -1, -1))
+        parallel_sums_ivs = np.tile(np.expand_dims(np.random.randint(self.num_input_cols,
+                                    size=self.num_input_rows), axis=1),
+                                    (1, self.num_sums))
+
+        r = self._run_test('InferenceType: MARGINAL',
+                           [Ops.sum, Ops.sums, Ops.parallel_sums],
+                           [sum_inputs, sums_inputs, parallel_sums_inputs],
+                           [sum_indices, sums_indices, parallel_sums_indices],
+                           [sum_ivs, sums_ivs, parallel_sums_ivs],
+                           inf_type=spn.InferenceType.MARGINAL)
         results.append(r)
 
-        inputs = np.random.rand(self.batch_size, self.input_size)
-        inputs_tiled = np.tile(inputs, self.num_sums)
-        indices_inp = list(range(self.input_size * self.num_sums))
-        indices_hidden = list(range(self.num_sums))
-        ivs_inp = np.expand_dims(np.random.randint(self.input_size,
-                                                   size=self.batch_size), axis=1)
-        ivs_hidden = np.expand_dims(np.random.randint(self.num_sums,
-                                                      size=self.batch_size), axis=1)
-        ivs_inp_tiled = np.tile(ivs_inp, (1, self.num_sums))
-        ivs_hidden_tiled = np.tile(ivs_hidden, (1, self.num_sums))
-        r = self._run_test('Sums',
-                           [Sums],
-                           inputs_tiled, indices_inp, indices_hidden,
-                           ivs_inp_tiled, ivs_hidden_tiled)
-        results.append(r)
-
-        inputs = np.random.rand(self.batch_size, self.input_size)
-        indices_inp = list(range(self.input_size))
-        indices_hidden = list(range(self.num_sums))
-        ivs_inp = np.expand_dims(np.random.randint(self.input_size,
-                                                   size=self.batch_size), axis=1)
-        ivs_hidden = np.expand_dims(np.random.randint(self.num_sums,
-                                                      size=self.batch_size), axis=1)
-        ivs_inp_tiled = np.tile(ivs_inp, (1, self.num_sums))
-        ivs_hidden_tiled = np.tile(ivs_hidden, (1, self.num_sums))
-        r = self._run_test('ParallelSums',
-                           [ParallelSums],
-                           inputs, indices_inp, indices_hidden,
-                           ivs_inp_tiled, ivs_hidden_tiled)
+        r = self._run_test('InferenceType: MPE',
+                           [Ops.sum, Ops.sums, Ops.parallel_sums],
+                           [sum_inputs, sums_inputs, parallel_sums_inputs],
+                           [sum_indices, sums_indices, parallel_sums_indices],
+                           [sum_ivs, sums_ivs, parallel_sums_ivs],
+                           inf_type=spn.InferenceType.MPE)
         results.append(r)
 
         return results
+
 
     def run(self):
         """Run all tests."""
         print1("Running tests:", self.file)
         results = []
-        results += self._run_all_nodes()
+        results += self._run_1d()
+        #results += self._run_2d()
 
         # Print results
         for res in results:
@@ -457,14 +382,14 @@ class PerformanceTest:
 def main():
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--batch-size', default=200, type=int,
-                        help="Batch size of inputs")
-    parser.add_argument('--input-size', default=100, type=int,
-                        help="Num of input variables")
+    parser.add_argument('--num-input-rows', default=200, type=int,
+                        help="Num of rows of inputs")
+    parser.add_argument('--num-input-cols', default=100, type=int,
+                        help="Num of cols of inputs")
     parser.add_argument('--num-sums', default=100, type=int,
-                        help="Num of indices used for SOME tests")
-    parser.add_argument('--num-layers', default=10, type=int,
-                        help="Num of sums modeled per graph")
+                        help="Num of sums modelled in a single layer")
+    parser.add_argument('--num-ops', default=10, type=int,
+                        help="Num of ops used for tests")
     parser.add_argument('--num-runs', default=10, type=int,
                         help="Number of times each test is run")
     parser.add_argument('--log-devices', action='store_true',
@@ -475,15 +400,7 @@ def main():
                         help="Do not run GPU tests")
     parser.add_argument('--save-to', default='', type=str,
                         help="Save results to file")
-    dtype = tf.float32
     args = parser.parse_args()
-
-    if args.num_layers < 1:
-        sys.exit('ERROR: num_layers must a positive integer')
-
-    if args.num_sums < 1:
-        sys.exit('ERROR: num_sums must a positive integer')
-
 
     # Open a file
     f = None
@@ -491,9 +408,10 @@ def main():
         f = open(args.save_to, 'w')
 
     try:
-        t = PerformanceTest(args.batch_size, args.input_size, args.num_sums,
-                            args.num_layers, args.num_runs, args.without_cpu,
-                            args.without_gpu, args.log_devices, f)
+        t = PerformanceTest(args.num_input_rows, args.num_input_cols,
+                            args.num_sums, args.num_ops, args.num_runs,
+                            args.without_cpu, args.without_gpu, args.log_devices,
+                            f)
         t.run()
     finally:
         if f is not None:
