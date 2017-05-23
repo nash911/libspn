@@ -36,7 +36,7 @@ def print2(str, file):
 
 class Ops:
 
-    def sum(inputs, indices, ivs, num_sums, inf_type, output=None):
+    def sum(inputs, indices, ivs, num_sums, inf_type, log=False, output=None):
         if indices is None:
             inputs = [inputs]
         else:
@@ -53,9 +53,14 @@ class Ops:
         root = spn.Sum(*s)
         root.generate_weights()
 
-        return spn.initialize_weights(root), root.get_value(inference_type=inf_type)
+        if log:
+            value_op = root.get_log_value(inference_type=inf_type)
+        else:
+            value_op = root.get_value(inference_type=inf_type)
 
-    def sums(inputs, indices, ivs, num_sums, inf_type, output=None):
+        return spn.initialize_weights(root), value_op
+
+    def sums(inputs, indices, ivs, num_sums, inf_type, log=True, output=None):
         if indices is None:
             inputs = [inputs]
         else:
@@ -71,9 +76,14 @@ class Ops:
         root = spn.Sum(s)
         root.generate_weights()
 
-        return spn.initialize_weights(root), root.get_value(inference_type=inf_type)
+        if log:
+            value_op = root.get_log_value(inference_type=inf_type)
+        else:
+            value_op = root.get_value(inference_type=inf_type)
 
-    def parallel_sums(inputs, indices, ivs, num_sums, inf_type, output=None):
+        return spn.initialize_weights(root), value_op
+
+    def parallel_sums(inputs, indices, ivs, num_sums, inf_type, log=True, output=None):
         if indices is None:
             inputs = [inputs]
         else:
@@ -90,7 +100,12 @@ class Ops:
         root = spn.Sum(s)
         root.generate_weights()
 
-        return spn.initialize_weights(root), root.get_value(inference_type=inf_type)
+        if log:
+            value_op = root.get_log_value(inference_type=inf_type)
+        else:
+            value_op = root.get_value(inference_type=inf_type)
+
+        return spn.initialize_weights(root), value_op
 
 class OpTestResult:
     """Result of a single test of a single op."""
@@ -169,8 +184,7 @@ class PerformanceTest:
         print1("", file=file)
 
 
-    def _true_output(self, op_fun, inputs, indices, ivs=None,
-                     inf_type=None):
+    def _true_output(self, op_fun, inputs, indices, ivs=None, inf_type=None):
         input_size = inputs.shape[1]
 
         if indices is not None:
@@ -214,7 +228,7 @@ class PerformanceTest:
 
 
     def _run_op_test(self, op_fun, inputs, indices=None, ivs=None,
-                     inf_type=spn.InferenceType.MARGINAL, on_gpu=True):
+                     inf_type=spn.InferenceType.MARGINAL, log=False, on_gpu=True):
         """Run a single test for a single op."""
         # Preparations
         op_name = op_fun.__name__
@@ -250,13 +264,13 @@ class PerformanceTest:
             # Create ops
             start_time = time.time()
             init_ops, ops = op_fun(inputs_pl, indices, ivs_pl, self.num_sums,
-                                   inf_type)
+                                   inf_type, log)
             for _ in range(self.num_ops - 1):
                 # The tuple ensures that the next op waits for the output
                 # of the previous op, effectively stacking the ops
                 # but using the original input every time
                 init_ops, ops = op_fun(inputs_pl, indices, ivs_pl, self.num_sums,
-                                       inf_type, tf.tuple([ops])[0])
+                                       inf_type, log, tf.tuple([ops])[0])
             setup_time = time.time() - start_time
         # Get num of graph ops
         graph_size = len(tf.get_default_graph().get_operations())
@@ -282,51 +296,107 @@ class PerformanceTest:
                 run_times.append(time.time() - start_time)
                 # Test value
                 try:
-                    np.testing.assert_array_almost_equal(out, true_out)
+                    np.testing.assert_array_almost_equal(out, (np.log(true_out)
+                                                               if log else true_out))
                 except AssertionError:
                     output_correct = False
-                    if op_fun == Ops.sum:
-                        print("inputs: ", inputs)
-                        print("indices: ", indices)
-                        print("ivs: ", ivs)
-                        print("true_out: ", true_out)
-                        print("out: ", out)
         # Return stats
         return OpTestResult(op_name, on_gpu, graph_size, ("No" if indices is None else "Yes"),
                             ("No" if ivs is None else "Yes"), setup_time,
                             weights_init_time, run_times, output_correct)
 
-    def _run_test(self, test_name, op_funs, inputs, indices, ivs, inf_type):
+    def _run_test(self, test_name, op_funs, inputs, indices, ivs, inf_type, log):
         """Run a single test for multiple ops and devices."""
         cpu_results = []
         gpu_results = []
         for op_fun, inp, ind, iv in zip(op_funs, inputs, indices, ivs):
             if not self.without_cpu:
                 cpu_results.append( # Indices = No, IVs = No
-                    self._run_op_test(op_fun, inp, None, None, inf_type=inf_type,
-                                      on_gpu=False))
+                    self._run_op_test(op_fun, inp, indices=None, ivs=None,
+                                      inf_type=inf_type, log=log, on_gpu=False))
                 cpu_results.append( # Indices = Yes, IVs = No
-                    self._run_op_test(op_fun, inp, ind, None, inf_type=inf_type,
-                                      on_gpu=False))
+                    self._run_op_test(op_fun, inp, indices=ind, ivs=None,
+                                      inf_type=inf_type, log=log, on_gpu=False))
                 cpu_results.append( # Indices = Yes, IVs = Yes
-                    self._run_op_test(op_fun, inp, ind, iv, inf_type=inf_type,
-                                      on_gpu=False))
+                    self._run_op_test(op_fun, inp, indices=ind, ivs=iv,
+                                      inf_type=inf_type, log=log, on_gpu=False))
             if not self.without_gpu:
                 gpu_results.append( # Indices = No, IVs = No
-                    self._run_op_test(op_fun, inp, None, None, inf_type=inf_type,
-                                      on_gpu=True))
+                    self._run_op_test(op_fun, inp, indices=None, ivs=None,
+                                      inf_type=inf_type, log=log, on_gpu=True))
                 gpu_results.append( # Indices = Yes, IVs = No
-                    self._run_op_test(op_fun, inp, ind, None, inf_type=inf_type,
-                                      on_gpu=True))
+                    self._run_op_test(op_fun, inp, indices=ind, ivs=None,
+                                      inf_type=inf_type, log=log, on_gpu=True))
                 gpu_results.append( # Indices = Yes, IVs = Yes
-                    self._run_op_test(op_fun, inp, ind, iv, inf_type=inf_type,
-                                      on_gpu=True))
+                    self._run_op_test(op_fun, inp, indices=ind, ivs=iv,
+                                      inf_type=inf_type, log=log, on_gpu=True))
         return TestResults(test_name, cpu_results, gpu_results)
 
-    def _run_1d(self):
-        """Run all 1D tests."""
+    # def _run_value_tests(self):
+    #     """Run all Value tests."""
+    #
+    #     results = []
+    #     # Sum
+    #     sum_inputs = np.random.rand(self.num_input_rows, self.num_input_cols)
+    #     sum_indices = list(range(self.num_input_cols-1, -1, -1))
+    #     sum_ivs = np.expand_dims(np.random.randint(self.num_input_cols,
+    #                                                size=self.num_input_rows),
+    #                                                axis=1)
+    #
+    #     # Sums
+    #     sums_inputs = np.tile(np.random.rand(self.num_input_rows,
+    #                                          self.num_input_cols), self.num_sums)
+    #     sums_indices = list(range((self.num_input_cols * self.num_sums)-1, -1, -1))
+    #     sums_ivs = np.tile(np.expand_dims(np.random.randint(self.num_input_cols,
+    #                        size=self.num_input_rows), axis=1), (1, self.num_sums))
+    #
+    #     # ParallelSums
+    #     parallel_sums_inputs = np.random.rand(self.num_input_rows, self.num_input_cols)
+    #     parallel_sums_indices = list(range(self.num_input_cols-1, -1, -1))
+    #     parallel_sums_ivs = np.tile(np.expand_dims(np.random.randint(self.num_input_cols,
+    #                                 size=self.num_input_rows), axis=1),
+    #                                 (1, self.num_sums))
+    #
+    #     r = self._run_test('InferenceType: MARGINAL',
+    #                        [Ops.sum, Ops.sums, Ops.parallel_sums],
+    #                        [sum_inputs, sums_inputs, parallel_sums_inputs],
+    #                        [sum_indices, sums_indices, parallel_sums_indices],
+    #                        [sum_ivs, sums_ivs, parallel_sums_ivs],
+    #                        inf_type=spn.InferenceType.MARGINAL, log=False)
+    #     results.append(r)
+    #
+    #     r = self._run_test('InferenceType: MARGINAL-LOG',
+    #                        [Ops.sum, Ops.sums, Ops.parallel_sums],
+    #                        [sum_inputs, sums_inputs, parallel_sums_inputs],
+    #                        [sum_indices, sums_indices, parallel_sums_indices],
+    #                        [sum_ivs, sums_ivs, parallel_sums_ivs],
+    #                        inf_type=spn.InferenceType.MARGINAL, log=True)
+    #     results.append(r)
+    #
+    #     r = self._run_test('InferenceType: MPE',
+    #                        [Ops.sum, Ops.sums, Ops.parallel_sums],
+    #                        [sum_inputs, sums_inputs, parallel_sums_inputs],
+    #                        [sum_indices, sums_indices, parallel_sums_indices],
+    #                        [sum_ivs, sums_ivs, parallel_sums_ivs],
+    #                        inf_type=spn.InferenceType.MPE, log=False)
+    #     results.append(r)
+    #
+    #     r = self._run_test('InferenceType: MPE-LOG',
+    #                        [Ops.sum, Ops.sums, Ops.parallel_sums],
+    #                        [sum_inputs, sums_inputs, parallel_sums_inputs],
+    #                        [sum_indices, sums_indices, parallel_sums_indices],
+    #                        [sum_ivs, sums_ivs, parallel_sums_ivs],
+    #                        inf_type=spn.InferenceType.MPE, log=True)
+    #     results.append(r)
+    #
+    #     return results
 
+
+    def run(self):
+        """Run all tests."""
+        print1("Running tests:", self.file)
         results = []
+
         # Sum
         sum_inputs = np.random.rand(self.num_input_rows, self.num_input_cols)
         sum_indices = list(range(self.num_input_cols-1, -1, -1))
@@ -353,7 +423,15 @@ class PerformanceTest:
                            [sum_inputs, sums_inputs, parallel_sums_inputs],
                            [sum_indices, sums_indices, parallel_sums_indices],
                            [sum_ivs, sums_ivs, parallel_sums_ivs],
-                           inf_type=spn.InferenceType.MARGINAL)
+                           inf_type=spn.InferenceType.MARGINAL, log=False)
+        results.append(r)
+
+        r = self._run_test('InferenceType: MARGINAL-LOG',
+                           [Ops.sum, Ops.sums, Ops.parallel_sums],
+                           [sum_inputs, sums_inputs, parallel_sums_inputs],
+                           [sum_indices, sums_indices, parallel_sums_indices],
+                           [sum_ivs, sums_ivs, parallel_sums_ivs],
+                           inf_type=spn.InferenceType.MARGINAL, log=True)
         results.append(r)
 
         r = self._run_test('InferenceType: MPE',
@@ -361,18 +439,16 @@ class PerformanceTest:
                            [sum_inputs, sums_inputs, parallel_sums_inputs],
                            [sum_indices, sums_indices, parallel_sums_indices],
                            [sum_ivs, sums_ivs, parallel_sums_ivs],
-                           inf_type=spn.InferenceType.MPE)
+                           inf_type=spn.InferenceType.MPE, log=False)
         results.append(r)
 
-        return results
-
-
-    def run(self):
-        """Run all tests."""
-        print1("Running tests:", self.file)
-        results = []
-        results += self._run_1d()
-        #results += self._run_2d()
+        r = self._run_test('InferenceType: MPE-LOG',
+                           [Ops.sum, Ops.sums, Ops.parallel_sums],
+                           [sum_inputs, sums_inputs, parallel_sums_inputs],
+                           [sum_indices, sums_indices, parallel_sums_indices],
+                           [sum_ivs, sums_ivs, parallel_sums_ivs],
+                           inf_type=spn.InferenceType.MPE, log=True)
+        results.append(r)
 
         # Print results
         for res in results:
