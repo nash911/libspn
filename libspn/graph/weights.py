@@ -11,6 +11,8 @@ from libspn.graph.algorithms import traverse_graph
 from libspn import conf
 from libspn import utils
 
+import numbers
+
 
 class Weights(ParamNode):
     """A node containing a vector of weights of a sum node.
@@ -19,6 +21,7 @@ class Weights(ParamNode):
         init_value: Initial value of the weights. For possible values, see
                     :meth:`~libspn.utils.broadcast_value`.
         num_weights (int): Number of weights in the vector.
+        num_sums (int): Number of sum nodes the weight vector/matrix represents.
         name (str): Name of the node.
 
     Attributes:
@@ -26,17 +29,23 @@ class Weights(ParamNode):
     """
 
     def __init__(self, init_value=1, num_weights=1,
-                 trainable=True, name="Weights"):
+                 num_sums=1, trainable=True, name="Weights"):
         if not isinstance(num_weights, int) or num_weights < 1:
             raise ValueError("num_weights must be a positive integer")
+
+        if not isinstance(num_sums, int) or num_sums < 1:
+            raise ValueError("num_sums must be a positive integer")
+
         self._init_value = init_value
         self._num_weights = num_weights
+        self._num_sums = num_sums
         self._trainable = trainable
         super().__init__(name)
 
     def serialize(self):
         data = super().serialize()
         data['num_weights'] = self._num_weights
+        data['num_sums'] = self._num_sums
         data['trainable'] = self._trainable
         # If we're in session and the variable is set, get its value,
         # otherwise get init value
@@ -51,6 +60,7 @@ class Weights(ParamNode):
     def deserialize(self, data):
         self._init_value = data['value']
         self._num_weights = data['num_weights']
+        self._num_sums = data['num_sums']
         self._trainable = data['trainable']
         super().deserialize(data)
 
@@ -60,8 +70,13 @@ class Weights(ParamNode):
         return self._num_weights
 
     @property
+    def num_sums(self):
+        """int: Number of sum nodes the weights vector/matrix represents."""
+        return self._num_sums
+
+    @property
     def variable(self):
-        """Variable: The TF variable of shape ``[num_weights]`` holding the
+        """Variable: The TF variable of shape ``[num_sums, num_weights]`` holding the
         weights."""
         return self._variable
 
@@ -83,9 +98,13 @@ class Weights(ParamNode):
         Returns:
             Tensor: The assignment operation.
         """
-        value = utils.broadcast_value(value, (self._num_weights,),
-                                      dtype=conf.dtype)
-        value = utils.normalize_tensor(value)
+        if isinstance(value, utils.ValueType.RANDOM_UNIFORM) \
+           or isinstance(value, numbers.Real):
+            shape = self._num_sums * self._num_weights
+        else:
+            shape = self._num_weights
+        value = utils.broadcast_value(value, (shape,), dtype=conf.dtype)
+        value = utils.normalize_tensor_2D(value, self._num_weights, self._num_sums)
         return tf.assign(self._variable, value)
 
     def _create(self):
@@ -94,10 +113,15 @@ class Weights(ParamNode):
         Returns:
             Variable: A TF variable of shape ``[num_weights]``.
         """
+        if isinstance(self._init_value, utils.ValueType.RANDOM_UNIFORM) \
+           or isinstance(self._init_value, numbers.Real):
+            shape = self._num_sums * self._num_weights
+        else:
+            shape = self._num_weights
         init_val = utils.broadcast_value(self._init_value,
-                                         (self._num_weights,),
+                                         shape=(shape,),
                                          dtype=conf.dtype)
-        init_val = utils.normalize_tensor(init_val)
+        init_val = utils.normalize_tensor_2D(init_val, self._num_weights, self._num_sums)
         self._variable = tf.Variable(init_val, dtype=conf.dtype,
                                      collections=['spn_weights'])
 
@@ -108,7 +132,11 @@ class Weights(ParamNode):
         return self._variable
 
     def _compute_hard_em_update(self, counts):
-        return tf.reduce_sum(counts, 0)
+        # TODO: Need a better way to determing rank of counts'
+        if self.num_sums == 1:
+            return tf.reduce_sum(counts, axis=-2, keep_dims=True)
+        else:
+            return counts
 
 
 def assign_weights(root, value):
