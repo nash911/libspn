@@ -308,7 +308,7 @@ def reduce_log_sum(log_input, name=None):
 
 
 # log(x + y) = log(x) + log(1 + exp(log(y) - log(x)))
-def reduce_log_sum_3D(log_input, name=None):
+def reduce_log_sum_3D(log_input, transpose=True, name=None):
     """Calculate log of a sum of elements of a 3D tensor containing log values
     row-wise, with each slice representing a single sum node.
 
@@ -336,8 +336,11 @@ def reduce_log_sum_3D(log_input, name=None):
         out_zeros = tf.fill(tf.shape(out_normal),
                             tf.constant(-float('inf'), dtype=log_input.dtype))
         # Choose the output for each row
-        return tf.transpose(tf.squeeze(tf.where(all_zero, out_zeros, out_normal), -1))
-
+        if transpose:
+            return tf.transpose(tf.squeeze(tf.where(all_zero, out_zeros,
+                                                    out_normal), -1))
+        else:
+            return tf.squeeze(tf.where(all_zero, out_zeros, out_normal), -1)
 
 def concat_maybe(values, axis, name='concat'):
     """Concatenate ``values`` if there is more than one value. Oherwise, just

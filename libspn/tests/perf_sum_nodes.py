@@ -235,10 +235,10 @@ class PerformanceTest:
         device_name = '/gpu:0' if on_gpu else '/cpu:0'
 
         # Print
-        print2("--> %s: on_gpu=%s, inputs_shape=%s, indices=%s, ivs=%s, inference=%s"
+        print2("--> %s: on_gpu=%s, inputs_shape=%s, indices=%s, ivs=%s, inference=%s, log=%s"
                % (op_name, on_gpu, inputs.shape, ("No" if indices is None else "Yes"),
                   ("No" if ivs is None else "Yes"), ("MPE" if inf_type == \
-                  spn.InferenceType.MARGINAL else "MARGINAL")), self.file)
+                  spn.InferenceType.MARGINAL else "MARGINAL"), log), self.file)
 
         input_size = inputs.shape[1]
 
@@ -332,65 +332,6 @@ class PerformanceTest:
                                       inf_type=inf_type, log=log, on_gpu=True))
         return TestResults(test_name, cpu_results, gpu_results)
 
-    # def _run_value_tests(self):
-    #     """Run all Value tests."""
-    #
-    #     results = []
-    #     # Sum
-    #     sum_inputs = np.random.rand(self.num_input_rows, self.num_input_cols)
-    #     sum_indices = list(range(self.num_input_cols-1, -1, -1))
-    #     sum_ivs = np.expand_dims(np.random.randint(self.num_input_cols,
-    #                                                size=self.num_input_rows),
-    #                                                axis=1)
-    #
-    #     # Sums
-    #     sums_inputs = np.tile(np.random.rand(self.num_input_rows,
-    #                                          self.num_input_cols), self.num_sums)
-    #     sums_indices = list(range((self.num_input_cols * self.num_sums)-1, -1, -1))
-    #     sums_ivs = np.tile(np.expand_dims(np.random.randint(self.num_input_cols,
-    #                        size=self.num_input_rows), axis=1), (1, self.num_sums))
-    #
-    #     # ParallelSums
-    #     parallel_sums_inputs = np.random.rand(self.num_input_rows, self.num_input_cols)
-    #     parallel_sums_indices = list(range(self.num_input_cols-1, -1, -1))
-    #     parallel_sums_ivs = np.tile(np.expand_dims(np.random.randint(self.num_input_cols,
-    #                                 size=self.num_input_rows), axis=1),
-    #                                 (1, self.num_sums))
-    #
-    #     r = self._run_test('InferenceType: MARGINAL',
-    #                        [Ops.sum, Ops.sums, Ops.parallel_sums],
-    #                        [sum_inputs, sums_inputs, parallel_sums_inputs],
-    #                        [sum_indices, sums_indices, parallel_sums_indices],
-    #                        [sum_ivs, sums_ivs, parallel_sums_ivs],
-    #                        inf_type=spn.InferenceType.MARGINAL, log=False)
-    #     results.append(r)
-    #
-    #     r = self._run_test('InferenceType: MARGINAL-LOG',
-    #                        [Ops.sum, Ops.sums, Ops.parallel_sums],
-    #                        [sum_inputs, sums_inputs, parallel_sums_inputs],
-    #                        [sum_indices, sums_indices, parallel_sums_indices],
-    #                        [sum_ivs, sums_ivs, parallel_sums_ivs],
-    #                        inf_type=spn.InferenceType.MARGINAL, log=True)
-    #     results.append(r)
-    #
-    #     r = self._run_test('InferenceType: MPE',
-    #                        [Ops.sum, Ops.sums, Ops.parallel_sums],
-    #                        [sum_inputs, sums_inputs, parallel_sums_inputs],
-    #                        [sum_indices, sums_indices, parallel_sums_indices],
-    #                        [sum_ivs, sums_ivs, parallel_sums_ivs],
-    #                        inf_type=spn.InferenceType.MPE, log=False)
-    #     results.append(r)
-    #
-    #     r = self._run_test('InferenceType: MPE-LOG',
-    #                        [Ops.sum, Ops.sums, Ops.parallel_sums],
-    #                        [sum_inputs, sums_inputs, parallel_sums_inputs],
-    #                        [sum_indices, sums_indices, parallel_sums_indices],
-    #                        [sum_ivs, sums_ivs, parallel_sums_ivs],
-    #                        inf_type=spn.InferenceType.MPE, log=True)
-    #     results.append(r)
-    #
-    #     return results
-
 
     def run(self):
         """Run all tests."""
@@ -466,7 +407,7 @@ def main():
                         help="Num of sums modelled in a single layer")
     parser.add_argument('--num-ops', default=10, type=int,
                         help="Num of ops used for tests")
-    parser.add_argument('--num-runs', default=10, type=int,
+    parser.add_argument('--num-runs', default=50, type=int,
                         help="Number of times each test is run")
     parser.add_argument('--log-devices', action='store_true',
                         help="Log on which device op is run. Affects run time!")
