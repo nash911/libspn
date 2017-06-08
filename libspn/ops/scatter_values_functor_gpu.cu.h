@@ -30,22 +30,11 @@ __global__ void ScatterValuesOpKernel(const T* params,
                                       const int64 params_size,
                                       const IndT* indices,
                                       const IndT num_out_cols,
-                                      const int64 out_slice_size,
-                                      const int64 params_cols,
                                       T* output)
 {
   CUDA_1D_KERNEL_LOOP(i, params_size)
   {
-    //int slice = i / params_cols;
-    //int row = i / params_cols;
-    //int col = i % params_cols;
-
-    /*IndT output_ind = (row * out_slice_size) + (row * num_out_cols) + ldg(indices + i);
-
-    output[output_ind] = ldg(params + i);*/
-
     IndT output_ind = (i * num_out_cols) + ldg(indices + i);
-
     output[output_ind] = ldg(params + i);
   }
 }
@@ -63,12 +52,6 @@ struct ScatterValuesFunctor<GPUDevice, T, IndT>
   {
     const int64 output_size = output.size();
     const int64 params_size = params.size();
-    //const int64 indices_size = indices.size();
-
-    //const int64 params_rows = params.dimension(0);
-    const int64 params_cols = params.dimension(1);
-
-    const int64 out_slice_size = params_cols * num_out_cols;
 
 //--Debugging flag disabled by default--//
 #if EXEC_TIME_CALC
@@ -83,7 +66,7 @@ struct ScatterValuesFunctor<GPUDevice, T, IndT>
     double pad_elem = 0.0;
 
     //--Initialize output tensor with pad_element--//
-    CudaLaunchConfig config = GetCudaLaunchConfig(params_size, d);
+    CudaLaunchConfig config = GetCudaLaunchConfig(output_size, d);
     OutputPadInitKernel<T>
         <<<config.block_count, config.thread_per_block, 0, d.stream()>>>(
         output.data(), output_size, (T)pad_elem);
@@ -92,8 +75,7 @@ struct ScatterValuesFunctor<GPUDevice, T, IndT>
     ScatterValuesOpKernel<T, IndT>
         <<<config.block_count, config.thread_per_block, 0, d.stream()>>>(
         params.data(), params_size, indices.data(),
-        num_out_cols, out_slice_size, params_cols,
-        output.data());
+        num_out_cols, output.data());
 
 //--Debugging flag disabled by default--//
 #if EXEC_TIME_CALC
