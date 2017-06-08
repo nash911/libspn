@@ -9,6 +9,7 @@
 
 from .math import gather_cols
 from .math import scatter_cols
+from .math import scatter_values
 from .math import ValueType
 from .math import broadcast_value
 from .math import normalize_tensor
@@ -32,7 +33,7 @@ from .serialization import str2type, type2str
 
 
 # All
-__all__ = ['scatter_cols', 'gather_cols', 'ValueType',
+__all__ = ['scatter_cols', 'scatter_values', 'gather_cols', 'ValueType',
            'broadcast_value', 'normalize_tensor', 'normalize_tensor_2D',
            'reduce_log_sum', 'reduce_log_sum_3D', 'concat_maybe', 'split_maybe',
            'StirlingNumber', 'StirlingRatio', 'Stirling',
