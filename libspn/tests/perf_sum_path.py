@@ -38,7 +38,8 @@ def print2(str, file):
 
 class Ops:
 
-    def sum(inputs, indices, ivs, num_sums, inf_type=None, log=False, output=None):
+    def sum(inputs, indices, ivs, num_sums, inf_type=None, log=False,
+            output=None):
         if indices is None:
             inputs = [inputs]
         else:
@@ -67,7 +68,7 @@ class Ops:
         path_op = mpe_path_gen.counts[weights]
         return spn.initialize_weights(root), path_op
 
-    def parallel_sums(inputs, indices, ivs, num_sums, inf_type=None, log=True,
+    def parallel_oneH(inputs, indices, ivs, num_sums, inf_type=None, log=True,
                       output=None):
         if indices is None:
             inputs = [inputs]
@@ -86,9 +87,36 @@ class Ops:
         root.generate_weights()
 
         if log:
-            mpe_path_gen = spn.MPEPath(value_inference_type=inf_type, log=True)
+            mpe_path_gen = spn.MPEPath(value_inference_type=inf_type, log=True, add_random=False)
         else:
-            mpe_path_gen = spn.MPEPath(value_inference_type=inf_type, log=False)
+            mpe_path_gen = spn.MPEPath(value_inference_type=inf_type, log=False, add_random=False)
+
+        mpe_path_gen.get_mpe_path(root)
+        path_op = mpe_path_gen.counts[weights]
+        return spn.initialize_weights(root), path_op
+
+    def parallel_sctr(inputs, indices, ivs, num_sums, inf_type=None, log=True,
+                      output=None):
+        if indices is None:
+            inputs = [inputs]
+        else:
+            inputs = [(inputs, indices)]
+
+        # Generate a single ParallelSums node, modeling 'num_sums' sum nodes
+        # within, connecting it to inputs and ivs
+        s = spn.ParallelSums(*inputs, num_sums=num_sums, ivs=ivs)
+        # Generate weights of the Parallel§Sums node
+        weights = s.generate_weights()
+
+        # Connect the ParallelSums nodes to a single root Sum node and generate
+        # its weights
+        root = spn.Sum(s)
+        root.generate_weights()
+
+        if log:
+            mpe_path_gen = spn.MPEPath(value_inference_type=inf_type, log=True, add_random=True)
+        else:
+            mpe_path_gen = spn.MPEPath(value_inference_type=inf_type, log=False, add_random=True)
 
         mpe_path_gen.get_mpe_path(root)
         path_op = mpe_path_gen.counts[weights]
@@ -183,7 +211,8 @@ class PerformanceTest:
             weight = 1.0 / input_size
             input_slice = inputs
             ivs_slice = ivs
-        elif op_fun is Ops.parallel_sums:
+        #elif op_fun is Ops.parallel_sums:
+        elif op_fun is Ops.parallel_oneH or op_fun is Ops.parallel_sctr:
             weight = 1.0 / input_size
             input_slice = inputs
             if ivs is not None:
@@ -200,7 +229,8 @@ class PerformanceTest:
 
         if op_fun is Ops.sum:
             return counts
-        elif op_fun is Ops.parallel_sums:
+        #elif op_fun is Ops.parallel_sums:
+        elif op_fun is Ops.parallel_oneH or op_fun is Ops.parallel_sctr:
             return np.transpose(np.delete(np.insert(np.zeros_like(inputs_array),
                                           0, counts, axis=0), -1, 0), [1, 0, 2])
     def _run_op_test(self, op_fun, inputs, indices=None, ivs=None,
@@ -232,7 +262,8 @@ class PerformanceTest:
             else:
                 if op_fun is Ops.sum:
                     ivs_pl = spn.IVs(num_vars=1, num_vals=input_size)
-                elif op_fun is Ops.parallel_sums:
+                #elif op_fun is Ops.parallel_sums:
+                elif op_fun is Ops.parallel_oneH or op_fun is Ops.parallel_sctr:
                     ivs_pl = spn.IVs(num_vars=self.num_sums, num_vals=input_size)
             # Create ops
             start_time = time.time()
@@ -348,34 +379,34 @@ class PerformanceTest:
                                     (1, self.num_sums))
 
         r = self._run_test('InferenceType: MARGINAL',
-                           [Ops.sum, Ops.parallel_sums],
-                           [sum_inputs, parallel_sums_inputs],
-                           [sum_indices, parallel_sums_indices],
-                           [sum_ivs, parallel_sums_ivs],
+                           [Ops.sum, Ops.parallel_oneH, Ops.parallel_sctr],
+                           [sum_inputs, parallel_sums_inputs, parallel_sums_inputs],
+                           [sum_indices, parallel_sums_indices, parallel_sums_indices],
+                           [sum_ivs, parallel_sums_ivs, parallel_sums_ivs],
                            inf_type=spn.InferenceType.MARGINAL, log=False)
         results.append(r)
 
         r = self._run_test('InferenceType: MARGINAL-LOG',
-                           [Ops.sum, Ops.parallel_sums],
-                           [sum_inputs, parallel_sums_inputs],
-                           [sum_indices, parallel_sums_indices],
-                           [sum_ivs, parallel_sums_ivs],
+                           [Ops.sum, Ops.parallel_oneH, Ops.parallel_sctr],
+                           [sum_inputs, parallel_sums_inputs, parallel_sums_inputs],
+                           [sum_indices, parallel_sums_indices, parallel_sums_indices],
+                           [sum_ivs, parallel_sums_ivs, parallel_sums_ivs],
                            inf_type=spn.InferenceType.MARGINAL, log=True)
         results.append(r)
 
         r = self._run_test('InferenceType: MPE',
-                           [Ops.sum, Ops.parallel_sums],
-                           [sum_inputs, parallel_sums_inputs],
-                           [sum_indices, parallel_sums_indices],
-                           [sum_ivs, parallel_sums_ivs],
+                           [Ops.sum, Ops.parallel_oneH, Ops.parallel_sctr],
+                           [sum_inputs, parallel_sums_inputs, parallel_sums_inputs],
+                           [sum_indices, parallel_sums_indices, parallel_sums_indices],
+                           [sum_ivs, parallel_sums_ivs, parallel_sums_ivs],
                            inf_type=spn.InferenceType.MPE, log=False)
         results.append(r)
 
         r = self._run_test('InferenceType: MPE-LOG',
-                           [Ops.sum, Ops.parallel_sums],
-                           [sum_inputs, parallel_sums_inputs],
-                           [sum_indices, parallel_sums_indices],
-                           [sum_ivs, parallel_sums_ivs],
+                           [Ops.sum, Ops.parallel_oneH, Ops.parallel_sctr],
+                           [sum_inputs, parallel_sums_inputs, parallel_sums_inputs],
+                           [sum_indices, parallel_sums_indices, parallel_sums_indices],
+                           [sum_ivs, parallel_sums_ivs, parallel_sums_ivs],
                            inf_type=spn.InferenceType.MPE, log=True)
         results.append(r)
 

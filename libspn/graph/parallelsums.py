@@ -19,6 +19,7 @@ from libspn import utils
 from libspn.exceptions import StructureError
 from libspn.log import get_logger
 from libspn import conf
+from libspn.ops import ops
 
 from itertools import cycle
 
@@ -349,12 +350,92 @@ class ParallelSums(OpNode):
         return tf.reduce_max(values_weighted, axis=2)
 
 
+    # def _compute_mpe_path_common(self, values_weighted, counts, weight_value,
+    #                              ivs_value, *value_values):
+    #     # Propagate the counts to the max value
+    #     max_indices = tf.argmax(values_weighted, dimension=2)
+    #     max_counts = tf.one_hot(max_indices, values_weighted.get_shape()[2]) * \
+    #                  tf.expand_dims(counts, axis=2)
+    #     # Sum up max counts between individual sum nodes
+    #     max_counts_summed = tf.reduce_sum(max_counts, 1)
+    #     # Split the max counts to value inputs
+    #     _, _, *value_sizes = self.get_input_sizes(None, None, *value_values)
+    #     max_counts_split = tf.split(max_counts_summed, value_sizes, 1)
+    #     return self._scatter_to_input_tensors(
+    #         (max_counts, weight_value),  # Weights
+    #         (max_counts_summed, ivs_value),  # IVs
+    #         *[(t, v) for t, v in zip(max_counts_split, value_values)])  # Values
+
+
+    # def _compute_mpe_path(self, counts, weight_value, ivs_value, *value_values,
+    #                       add_random=None, use_unweighted=False):
+    #     # Get weighted, IV selected values
+    #     weight_value, ivs_value, values = self._compute_value_common(
+    #         weight_value, ivs_value, *value_values)
+    #     if self._ivs:
+    #         # IVs tensor shape = (Batch X (num_sums * num_vals))
+    #         # reshape it to (num_sums X Batch X num_feat)
+    #         reshape = (-1, self._num_sums, values.shape[1].value)
+    #         ivs_value = tf.reshape(ivs_value, shape=reshape)
+    #         values_weighted = tf.expand_dims(values, axis=1) * (ivs_value *
+    #                                                             weight_value)
+    #     else:
+    #         values_weighted = tf.expand_dims(values, axis=1) * weight_value
+    #     return self._compute_mpe_path_common(
+    #          values_weighted, counts, weight_value, ivs_value, *value_values)
+    #
+    #
+    # def _compute_log_mpe_path(self, counts, weight_value, ivs_value,
+    #                           *value_values, add_random=None,
+    #                           use_unweighted=False):
+    #     # Get weighted, IV selected values
+    #     weight_value, ivs_value, values = self._compute_value_common(
+    #         weight_value, ivs_value, *value_values)
+    #     if self._ivs:
+    #         # IVs tensor shape = (Batch X (num_sums * num_vals))
+    #         # reshape it to (num_sums X Batch X num_feat)
+    #         reshape = (-1, self._num_sums, values.shape[1].value)
+    #         ivs_value = tf.reshape(ivs_value, shape=reshape)
+    #
+    #         # WARN USING UNWEIGHTED VALUE
+    #         if not use_unweighted or any(v.node.is_var for v in self._values):
+    #             values_weighted = tf.expand_dims(values, axis=1) + (ivs_value +
+    #                                                                 weight_value)
+    #         else:
+    #             # / USING UNWEIGHTED VALUE
+    #             values_weighted = tf.expand_dims(values, axis=1) + ivs_value
+    #     else:
+    #         # WARN USING UNWEIGHTED VALUE
+    #         if not use_unweighted or any(v.node.is_var for v in self._values):
+    #             values_weighted = tf.expand_dims(values, axis=1) + weight_value
+    #         else:
+    #             # / USING UNWEIGHTED VALUE
+    #             values_weighted = tf.expand_dims(values, axis=1)
+    #
+    #     # WARN ADDING RANDOM NUMBERS
+    #     if add_random is not None:
+    #         values_weighted = tf.add(values_weighted, tf.random_uniform(
+    #             shape=(tf.shape(values_weighted)[0], 1,
+    #                    int(values_weighted.get_shape()[2])),
+    #             minval=0, maxval=add_random,
+    #             dtype=conf.dtype))
+    #     # /ADDING RANDOM NUMBERS
+    #
+    #     return self._compute_mpe_path_common(
+    #         values_weighted, counts, weight_value, ivs_value, *value_values)
+
+
     def _compute_mpe_path_common(self, values_weighted, counts, weight_value,
-                                 ivs_value, *value_values):
+                                 ivs_value, *value_values, scatter_values=False):
         # Propagate the counts to the max value
         max_indices = tf.argmax(values_weighted, dimension=2)
-        max_counts = tf.one_hot(max_indices, values_weighted.get_shape()[2]) * \
+        if scatter_values:
+            max_counts = ops.scatter_values(params=counts, indices=max_indices,
+                                            num_out_col=values_weighted.get_shape()[2])
+        else:
+            max_counts = tf.one_hot(max_indices, values_weighted.get_shape()[2]) * \
                      tf.expand_dims(counts, axis=2)
+
         # Sum up max counts between individual sum nodes
         max_counts_summed = tf.reduce_sum(max_counts, 1)
         # Split the max counts to value inputs
@@ -365,9 +446,8 @@ class ParallelSums(OpNode):
             (max_counts_summed, ivs_value),  # IVs
             *[(t, v) for t, v in zip(max_counts_split, value_values)])  # Values
 
-
     def _compute_mpe_path(self, counts, weight_value, ivs_value, *value_values,
-                          add_random=None, use_unweighted=False):
+                          add_random=False, use_unweighted=False):
         # Get weighted, IV selected values
         weight_value, ivs_value, values = self._compute_value_common(
             weight_value, ivs_value, *value_values)
@@ -381,7 +461,8 @@ class ParallelSums(OpNode):
         else:
             values_weighted = tf.expand_dims(values, axis=1) * weight_value
         return self._compute_mpe_path_common(
-             values_weighted, counts, weight_value, ivs_value, *value_values)
+             values_weighted, counts, weight_value, ivs_value, *value_values,
+             scatter_values=add_random)
 
 
     def _compute_log_mpe_path(self, counts, weight_value, ivs_value,
@@ -411,14 +492,15 @@ class ParallelSums(OpNode):
                 # / USING UNWEIGHTED VALUE
                 values_weighted = tf.expand_dims(values, axis=1)
 
-        # WARN ADDING RANDOM NUMBERS
-        if add_random is not None:
-            values_weighted = tf.add(values_weighted, tf.random_uniform(
-                shape=(tf.shape(values_weighted)[0], 1,
-                       int(values_weighted.get_shape()[2])),
-                minval=0, maxval=add_random,
-                dtype=conf.dtype))
-        # /ADDING RANDOM NUMBERS
+        # # WARN ADDING RANDOM NUMBERS
+        # if add_random is not None:
+        #     values_weighted = tf.add(values_weighted, tf.random_uniform(
+        #         shape=(tf.shape(values_weighted)[0], 1,
+        #                int(values_weighted.get_shape()[2])),
+        #         minval=0, maxval=add_random,
+        #         dtype=conf.dtype))
+        # # /ADDING RANDOM NUMBERS
 
         return self._compute_mpe_path_common(
-            values_weighted, counts, weight_value, ivs_value, *value_values)
+            values_weighted, counts, weight_value, ivs_value, *value_values,
+            scatter_values=add_random)

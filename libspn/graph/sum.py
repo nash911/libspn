@@ -329,14 +329,14 @@ class Sum(OpNode):
 
         # / USING UNWEIGHTED VALUE
 
-        # WARN ADDING RANDOM NUMBERS
-        if add_random is not None:
-            values_weighted = tf.add(values_weighted, tf.random_uniform(
-                shape=(tf.shape(values_weighted)[0],
-                       int(values_weighted.get_shape()[1])),
-                minval=0, maxval=add_random,
-                dtype=conf.dtype))
-        # /ADDING RANDOM NUMBERS
+        # # WARN ADDING RANDOM NUMBERS
+        # if add_random is not None:
+        #     values_weighted = tf.add(values_weighted, tf.random_uniform(
+        #         shape=(tf.shape(values_weighted)[0],
+        #                int(values_weighted.get_shape()[1])),
+        #         minval=0, maxval=add_random,
+        #         dtype=conf.dtype))
+        # # /ADDING RANDOM NUMBERS
 
         return self._compute_mpe_path_common(
             values_weighted, counts, weight_value, ivs_value, *value_values)
