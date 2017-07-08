@@ -258,12 +258,12 @@ class ParallelSums(OpNode):
         flat_value_scopes = list(chain.from_iterable(value_scopes_))
         # IVs
         if self._ivs:
-            # Verify number of IVs
-            if len(ivs_scopes_) != len(flat_value_scopes):
-                raise StructureError("Number of IVs (%s) and values (%s) does "
-                                     "not match for %s"
-                                     % (len(ivs_scopes_), len(flat_value_scopes),
-                                        self))
+            # # Verify number of IVs
+            # if len(ivs_scopes_) != len(flat_value_scopes):
+            #     raise StructureError("Number of IVs (%s) and values (%s) does "
+            #                          "not match for %s"
+            #                          % (len(ivs_scopes_), len(flat_value_scopes),
+            #                             self))
             # Check if scope of all IVs is just one and the same variable
             if len(Scope.merge_scopes(ivs_scopes_)) > 1:
                 return None
