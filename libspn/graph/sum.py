@@ -235,12 +235,13 @@ class Sum(OpNode):
         flat_value_scopes = list(chain.from_iterable(value_scopes_))
         # IVs
         if self._ivs:
+            value_sizes = [len(v.indices) if v.indices is not None else
+                           v.node.get_out_size() for v in self._values]
             # Verify number of IVs
-            if len(ivs_scopes_) != len(flat_value_scopes):
+            if len(ivs_scopes_) != sum(value_sizes): #len(flat_value_scopes):
                 raise StructureError("Number of IVs (%s) and values (%s) does "
                                      "not match for %s"
-                                     % (len(ivs_scopes_), len(flat_value_scopes),
-                                        self))
+                                     % (len(ivs_scopes_), sum(value_sizes), self))
             # Check if scope of all IVs is just one and the same variable
             if len(Scope.merge_scopes(ivs_scopes_)) > 1:
                 return None
