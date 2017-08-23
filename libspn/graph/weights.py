@@ -34,6 +34,7 @@ class Weights(ParamNode):
         self._init_value = init_value
         self._num_weights = num_weights
         self._trainable = trainable
+        self._current_value = None
         super().__init__(name)
 
     def serialize(self):
@@ -67,6 +68,11 @@ class Weights(ParamNode):
         """Variable: The TF variable of shape ``[num_weights]`` holding the
         weights."""
         return self._variable
+
+    @property
+    def current_value(self):
+        """list: A list of last stored values of the weights variable."""
+        return self._current_value
 
     def initialize(self):
         """Return a TF operation assigning the initial value to the weights.
@@ -103,6 +109,19 @@ class Weights(ParamNode):
         init_val = utils.normalize_tensor(init_val)
         self._variable = tf.Variable(init_val, dtype=conf.dtype,
                                      collections=['spn_weights'])
+
+    def set_current_value(self, current_value=None):
+        """Set current_value of weights.
+
+        Args:
+            current_value (list): A list of values representing the current
+                                  values of the weights variable in TF graph.
+        """
+        if self._num_weights != len(current_value):
+            raise ValueError("Size of current_value (%s) is not the same as "
+                             "weight size (%s) in %s" % (len(current_value),
+                                                         self._num_weights, self))
+        self._current_value = current_value
 
     def _compute_out_size(self):
         return self._num_weights
