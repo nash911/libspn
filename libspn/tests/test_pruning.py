@@ -18,7 +18,9 @@ class TestPruning(TestCase):
     def test_pruning_noivs(self):
         """Pruning a network without IVs"""
         def full_network():
-            """Build a custom SPN to be pruned"""
+            """Build a custom SPN to be pruned.
+               Figure 1 in https://github.com/pronobis/libspn/wiki/Pruning
+            """
             ivs_var = spn.IVs(num_vars=4, num_vals=4, name="ivs_var")
 
             # Layer - 1
@@ -99,7 +101,9 @@ class TestPruning(TestCase):
             return root, ivs_var
 
         def hand_pruned_network():
-            """Build a custom SPN representing post-pruning network"""
+            """Build a custom SPN representing post-pruning network
+               Figure 3 in https://github.com/pronobis/libspn/wiki/Pruning
+            """
             ivs_var = spn.IVs(num_vars=4, num_vals=4, name="ivs_var_1")
 
             # Layer - 1
