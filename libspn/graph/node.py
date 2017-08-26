@@ -128,6 +128,14 @@ class Input():
         else:
             raise TypeError("Cannot convert %s to an input" % (value,))
 
+    def node(self):
+        """Node: The node associated with this input"""
+        return self.node
+
+    def indices(self):
+        """list: List of indices if any, or None"""
+        return self.indices
+
     @property
     def is_op(self):
         """Returns ``True`` if the input is connected to an operation node."""

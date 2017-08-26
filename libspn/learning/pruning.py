@@ -86,7 +86,7 @@ class Pruning():
         if threshold is not None:
             self.set_threshold(threshold)
 
-        if not self._threshold:
+        if self._threshold is None:
             raise StructureError("%s is missing threshold value" % self)
 
         # Parents-dictionary: Key - Each node in the graph.
@@ -157,24 +157,33 @@ class Pruning():
                 values = list(node.values)
                 weights = node.weights.node.current_value
                 ivs = node.ivs
+                if ivs and ivs.indices:
+                    ivs_ind = ivs.indices
+                else:
+                    ivs_ind = list(range(len(values)))
 
                 new_weights = []
                 new_values = []
+                new_ivs_ind = []
 
                 if child_to_kill is None:
                     # Evaluate each connected value input, and if the weight is
                     # below the threshold, then remove it.
-                    for w, v in zip(weights, values):
+                    for w, v, iv in zip(weights, values, ivs_ind):
                         if(w > self._threshold):
                             new_weights.append(w)
                             new_values.append(v)
+                            new_ivs_ind.append(iv)
+
                 else:
                     # Remove the designated child node from its value input, and
                     # the corresponding weight.
                     del values[child_to_kill]
                     del weights[child_to_kill]
+                    del ivs_ind[child_to_kill]
                     new_values = values
                     new_weights = weights
+                    new_ivs_ind = ivs_ind
 
                 if len(new_values) > 0:
                     # Set the surviving list of children and their respective
@@ -183,10 +192,11 @@ class Pruning():
                     node.generate_weights(new_weights)
                     node.weights.node.set_current_value(new_weights)
 
-                    if len(new_values) > 1 and ivs:
-                        # TODO
-                        # node.generate_ivs()
-                        pass
+                    # TODO: @Andrzej: If input-size of a Sum node is 1, should
+                    #                 ivs then be disconnected?
+                    # if len(new_values) > 1 and ivs:
+                    if ivs:
+                        node.set_ivs((ivs.node, new_ivs_ind))
                     else:
                         node.set_ivs(None)
 
