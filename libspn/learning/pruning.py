@@ -154,8 +154,28 @@ class Pruning():
                 remove_from_parents_dict(node)
 
                 # Get values, weights and ivs inputs of the Sum node.
-                values = list(node.values)
+                # Values
+                value_values = list(node.values)
+                values = []
+                for v in value_values:
+                    # When indices is None
+                    if v.indices is None:
+                        v_size = v.node._compute_out_size()
+                        if v_size == 1:
+                            # When there is a single inputs
+                            values.append(v)
+                        else:
+                            # When there are multiple inputs, index each individually.
+                            values.extend([(v.node, ind) for ind in range(v_size)])
+                    # When there is a single index - [i]
+                    elif len(v.indices) == 1:
+                        values.append(v)
+                    # When there is a multiple indices - [i, j, k, ...]
+                    elif len(v.indices) > 1:
+                        values.extend([(v.node, ind) for ind in v.indices])
+                # Weights
                 weights = node.weights.node.current_value
+                # IVs
                 ivs = node.ivs
                 if ivs and ivs.indices:
                     ivs_ind = ivs.indices
