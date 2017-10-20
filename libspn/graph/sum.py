@@ -343,3 +343,24 @@ class Sum(OpNode):
 
         return self._compute_mpe_path_common(
             values_weighted, counts, weight_value, ivs_value, *value_values)
+
+    def _compute_probable_path(self, counts, weight_value, ivs_value, *value_values):
+        # TODO (Avinash): Currently not optimal since 'ivs_value' and ''*value_values'
+        # are accepted as parameters, although not used. Also, 'prob_counts' are
+        # scattered and returned for weights and ivs, but may not be needed.
+
+        # Get weighted, IV selected values
+        weight_value, ivs_value, values = self._compute_value_common(
+            weight_value, ivs_value, *value_values)
+
+        # Propagate the counts probabilistically, based on the weights value
+        prob_indices = tf.multinomial(tf.log(weight_value), num_samples=1)
+        prob_counts = tf.one_hot(tf.squeeze(prob_indices),
+                                 weight_value.get_shape()[1]) * counts
+        # Split the counts to value inputs
+        _, _, *value_sizes = self.get_input_sizes(None, None, *value_values)
+        prob_counts_split = utils.split_maybe(prob_counts, value_sizes, 1)
+        return self._scatter_to_input_tensors(
+            (prob_counts, weight_value),  # Weights
+            (prob_counts, ivs_value),  # IVs
+            *[(t, v) for t, v in zip(prob_counts_split, value_values)])  # Values
