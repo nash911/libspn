@@ -141,6 +141,41 @@ class TestGraphConcat(TestCase):
                               [17.]],
                              dtype=np.float32))
 
+    def test_compute_probable_path(self):
+        v12 = spn.IVs(num_vars=2, num_vals=4)
+        v34 = spn.ContVars(num_vars=2)
+        v5 = spn.ContVars(num_vars=1)
+        p = spn.Concat((v12, [0, 5]), v34, (v12, [3]), v5)
+        counts = tf.placeholder(tf.float32, shape=(None, 6))
+        op = p._compute_probable_path(tf.identity(counts),
+                                      v12.get_value(),
+                                      v34.get_value(),
+                                      v12.get_value(),
+                                      v5.get_value())
+        feed = np.r_[:18].reshape(-1, 6)
+        with tf.Session() as sess:
+            out = sess.run(op, feed_dict={counts: feed})
+        np.testing.assert_array_almost_equal(
+            out[0], np.array([[0., 0., 0., 0., 0., 1., 0., 0.],
+                              [6., 0., 0., 0., 0., 7., 0., 0.],
+                              [12., 0., 0., 0., 0., 13., 0., 0.]],
+                             dtype=np.float32))
+        np.testing.assert_array_almost_equal(
+            out[1], np.array([[2., 3.],
+                              [8., 9.],
+                              [14., 15.]],
+                             dtype=np.float32))
+        np.testing.assert_array_almost_equal(
+            out[2], np.array([[0., 0., 0., 4., 0., 0., 0., 0.],
+                              [0., 0., 0., 10., 0., 0., 0., 0.],
+                              [0., 0., 0., 16., 0., 0., 0., 0.]],
+                             dtype=np.float32))
+        np.testing.assert_array_almost_equal(
+            out[3], np.array([[5.],
+                              [11.],
+                              [17.]],
+                             dtype=np.float32))
+
 
 if __name__ == '__main__':
     tf.test.main()
