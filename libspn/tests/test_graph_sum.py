@@ -635,14 +635,19 @@ class TestGraphSum(TestCase):
                                       v5.get_value())
         init = w.initialize()
         counts_feed = [[123],
-                       [456]]
+                       [456],
+                       [789]]
         v12_feed = [[0, 1],
+                    [0, 1],
                     [0, 1]]
         v34_feed = [[0.1, 0.2],
+                    [0.1, 0.2],
                     [0.1, 0.2]]
         v5_feed = [[0.5],
+                   [0.5],
                    [0.5]]
         ivs_feed = [[-1],
+                    [-1],
                     [-1]]
 
         with tf.Session() as sess:
@@ -656,18 +661,22 @@ class TestGraphSum(TestCase):
 
         np.testing.assert_array_almost_equal(
             out[2], np.array([[0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.],
                               [0., 0., 0., 0., 0., 0., 0., 0.]],
                              dtype=np.float32))
         np.testing.assert_array_almost_equal(
             out[3], np.array([[0., 123.],
-                              [0., 456.]],
+                              [0., 456.],
+                              [0., 789.]],
                              dtype=np.float32))
         np.testing.assert_array_almost_equal(
             out[4], np.array([[0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.],
                               [0., 0., 0., 0., 0., 0., 0., 0.]],
                              dtype=np.float32))
         np.testing.assert_array_almost_equal(
             out[5], np.array([[0.],
+                              [0.],
                               [0.]],
                              dtype=np.float32))
 
