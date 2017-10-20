@@ -208,6 +208,43 @@ class TestGraphProduct(TestCase):
                               [2.]],
                              dtype=np.float32))
 
+    def test_compute_probable_path(self):
+        v12 = spn.IVs(num_vars=2, num_vals=4)
+        v34 = spn.ContVars(num_vars=2)
+        v5 = spn.ContVars(num_vars=1)
+        p = spn.Product((v12, [0, 5]), v34, (v12, [3]), v5)
+        counts = tf.placeholder(tf.float32, shape=(None, 1))
+        op = p._compute_probable_path(tf.identity(counts),
+                                      v12.get_value(),
+                                      v34.get_value(),
+                                      v12.get_value(),
+                                      v5.get_value())
+        feed = [[0],
+                [1],
+                [2]]
+        with tf.Session() as sess:
+            out = sess.run(op, feed_dict={counts: feed})
+        np.testing.assert_array_almost_equal(
+            out[0], np.array([[0., 0., 0., 0., 0., 0., 0., 0.],
+                              [1., 0., 0., 0., 0., 1., 0., 0.],
+                              [2., 0., 0., 0., 0., 2., 0., 0.]],
+                             dtype=np.float32))
+        np.testing.assert_array_almost_equal(
+            out[1], np.array([[0., 0.],
+                              [1., 1.],
+                              [2., 2.]],
+                             dtype=np.float32))
+        np.testing.assert_array_almost_equal(
+            out[2], np.array([[0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 1., 0., 0., 0., 0.],
+                              [0., 0., 0., 2., 0., 0., 0., 0.]],
+                             dtype=np.float32))
+        np.testing.assert_array_almost_equal(
+            out[3], np.array([[0.],
+                              [1.],
+                              [2.]],
+                             dtype=np.float32))
+
 
 if __name__ == '__main__':
     tf.test.main()

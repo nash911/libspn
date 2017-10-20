@@ -181,6 +181,99 @@ class TestInference(TestCase):
         np.testing.assert_array_equal(out.ravel(), model.true_mpe_state)
         np.testing.assert_array_equal(out_log.ravel(), model.true_mpe_state)
 
+    def test_probable_path(self):
+        # Generate SPN
+        iv_x = spn.IVs(num_vars=2, num_vals=2, name="iv_x")
+
+        sum_11 = spn.Sum((iv_x, [0, 1]), name="sum_11")
+        sum_11.generate_weights([0.001, 0.999])
+
+        sum_12 = spn.Sum((iv_x, [0, 1]), name="sum_12")
+        sum_12.generate_weights([0.9, 0.1])
+
+        sum_21 = spn.Sum((iv_x, [2, 3]), name="sum_21")
+        sum_21.generate_weights([0.3, 0.7])
+
+        sum_22 = spn.Sum((iv_x, [2, 3]), name="sum_22")
+        sum_22.generate_weights([0.999, 0.001])
+
+        prod_1 = spn.Product(sum_11, sum_21, name="prod_1")
+        prod_2 = spn.Product(sum_11, sum_22, name="prod_2")
+        prod_3 = spn.Product(sum_12, sum_22, name="prod_3")
+
+        root = spn.Sum(prod_1, prod_2, prod_3, name="root")
+        root.generate_weights([0.001, 0.998, 0.001])
+
+        # Add ops
+        init = spn.initialize_weights(root)
+        sampled_path_gen = spn.SampledPath(value_inference_type=spn.InferenceType.MPE,
+                                           log=False)
+        sampled_path_gen.get_probable_path(root)
+        # Run
+        with tf.Session() as sess:
+            init.run()
+            out = sess.run(sampled_path_gen.counts[iv_x],
+                           feed_dict={iv_x: np.ones((5, 2))})
+
+        true_ivs_counts = np.array([[0., 1., 1., 0.],
+                                    [0., 1., 1., 0.],
+                                    [0., 1., 1., 0.],
+                                    [0., 1., 1., 0.],
+                                    [0., 1., 1., 0.]],
+                                   dtype=spn.conf.dtype.as_numpy_dtype)
+
+        np.testing.assert_array_equal(out, true_ivs_counts)
+
+    def test_probable_state(self):
+        # Generate SPN
+        iv_x12 = spn.IVs(num_vars=2, num_vals=2, name="iv_x12")
+        iv_x34 = spn.IVs(num_vars=2, num_vals=2, name="iv_x34")
+
+        sum_11 = spn.Sum((iv_x12, [0, 1]), (iv_x34, [0, 1]), name="sum_11")
+        sum_11.generate_weights([0.001, 0.001, 0.001, 0.997])
+
+        sum_12 = spn.Sum((iv_x12, [0, 1]), (iv_x34, [0, 1]), name="sum_12")
+        sum_12.generate_weights([0.25, 0.25, 0.25, 0.25])
+
+        sum_21 = spn.Sum((iv_x12, [2, 3]), (iv_x34, [2, 3]), name="sum_21")
+        sum_21.generate_weights([0.25, 0.25, 0.25, 0.25])
+
+        sum_22 = spn.Sum((iv_x12, [2, 3]), (iv_x34, [2, 3]), name="sum_22")
+        sum_22.generate_weights([0.997, 0.001, 0.001, 0.001])
+
+        prod_1 = spn.Product(sum_11, sum_21, name="prod_1")
+        prod_2 = spn.Product(sum_11, sum_22, name="prod_2")
+        prod_3 = spn.Product(sum_12, sum_22, name="prod_3")
+
+        root = spn.Sum(prod_1, prod_2, prod_3, name="root")
+        root.generate_weights([0.001, 0.998, 0.001])
+
+        # Add ops
+        init = spn.initialize_weights(root)
+        sampled_state_gen = spn.SampledState(value_inference_type=spn.InferenceType.MPE,
+                                             log=False)
+        iv_x12_state, iv_x34_state = sampled_state_gen.get_state(root, iv_x12,
+                                                                 iv_x34)
+        # Run
+        with tf.Session() as sess:
+            init.run()
+            out = sess.run([iv_x12_state, iv_x34_state],
+                           feed_dict={iv_x12: np.ones((100, 2)) * 1,
+                                      iv_x34: np.ones((100, 2)) * 1})
+
+        np.testing.assert_array_equal(out[0][0][1], [0])
+        np.testing.assert_array_equal(out[1][0][0], [1])
+
+        sampled_path_gen = spn.SampledPath(value_inference_type=spn.InferenceType.MPE,
+                                           log=False)
+        sampled_path_gen.get_probable_path(root)
+        # Run
+        with tf.Session() as sess:
+            init.run()
+            out = sess.run([sampled_path_gen.counts[iv_x12], sampled_path_gen.counts[iv_x34]],
+                           feed_dict={iv_x12: [[-1, -1]],
+                                      iv_x34: [[-1, -1]]})
+
 
 if __name__ == '__main__':
     tf.test.main()
