@@ -62,3 +62,6 @@ class ContVars(VarNode):
 
     def _compute_mpe_state(self, counts):
         return counts
+
+    def _compute_probable_state(self, counts):
+        return counts

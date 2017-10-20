@@ -46,6 +46,8 @@ from libspn.inference.value import Value
 from libspn.inference.value import LogValue
 from libspn.inference.mpe_path import MPEPath
 from libspn.inference.mpe_state import MPEState
+from libspn.inference.sampled_path import SampledPath
+from libspn.inference.sampled_state import SampledState
 from libspn.learning.em import EMLearning
 from libspn.learning.gd import GDLearning
 
@@ -118,7 +120,7 @@ __all__ = [
     'generate_weights',
     # Inference and learning
     'InferenceType', 'Value', 'LogValue', 'MPEPath', 'MPEState',
-    'EMLearning', 'GDLearning',
+    'SampledPath', 'SampledState', 'EMLearning', 'GDLearning',
     # Data
     'Dataset', 'FileDataset', 'CSVFileDataset', 'GaussianMixtureDataset',
     'IntGridDataset', 'ImageFormat', 'ImageShape', 'ImageDatasetBase',
