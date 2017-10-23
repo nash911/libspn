@@ -1341,6 +1341,71 @@ class TestNodesParSums(unittest.TestCase):
                               [0.]],
                              dtype=np.float32))
 
+    def test_compute_probable_path(self):
+        v12 = spn.IVs(num_vars=2, num_vals=4)
+        v34 = spn.ContVars(num_vars=2)
+        v5 = spn.ContVars(num_vars=1)
+        s = spn.ParSums((v12, [0, 5]), v34, (v12, [3]), v5, num_sums=4)
+        iv = s.generate_ivs()
+        w = s.generate_weights([0.001, 0.001, 0.001, 0.995, 0.001, 0.001,
+                                0.001, 0.995, 0.001, 0.001, 0.001, 0.001,
+                                0.001, 0.001, 0.001, 0.995, 0.001, 0.001,
+                                0.001, 0.001, 0.001, 0.001, 0.001, 0.995])
+        counts = tf.placeholder(tf.float32, shape=(None, 4))
+        op = s._compute_probable_path(tf.identity(counts),
+                                      w.get_value(),
+                                      iv.get_value(),
+                                      v12.get_value(),
+                                      v34.get_value(),
+                                      v12.get_value(),
+                                      v5.get_value())
+        init = w.initialize()
+        counts_feed = [[10, 20, 30, 40],
+                       [11, 21, 31, 41],
+                       [12, 22, 32, 42]]
+        v12_feed = [[0, 1],
+                    [1, 1],
+                    [0, 0]]
+        v34_feed = [[0.1, 0.2],
+                    [1.2, 0.2],
+                    [0.1, 0.2]]
+        v5_feed = [[0.5],
+                   [0.5],
+                   [1.2]]
+        ivs_feed = [[-1, -1, -1, -1],
+                    [-1, -1, -1, -1],
+                    [-1, -1, -1, -1]]
+
+        with tf.Session() as sess:
+            sess.run(init)
+            # Skip the IVs op
+            out = sess.run(op, feed_dict={counts: counts_feed,
+                                          iv: ivs_feed,
+                                          v12: v12_feed,
+                                          v34: v34_feed,
+                                          v5: v5_feed})
+
+        np.testing.assert_array_almost_equal(
+            out[2], np.array([[0., 0., 0., 0., 0., 20., 0., 0.],
+                              [0., 0., 0., 0., 0., 21., 0., 0.],
+                              [0., 0., 0., 0., 0., 22., 0., 0.]],
+                             dtype=np.float32))
+        np.testing.assert_array_almost_equal(
+            out[3], np.array([[0., 40.],
+                              [0., 42.],
+                              [0., 44.]],
+                             dtype=np.float32))
+        np.testing.assert_array_almost_equal(
+            out[4], np.array([[0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.]],
+                             dtype=np.float32))
+        np.testing.assert_array_almost_equal(
+            out[5], np.array([[40.],
+                              [41.],
+                              [42.]],
+                             dtype=np.float32))
+
 
 if __name__ == '__main__':
     unittest.main()
