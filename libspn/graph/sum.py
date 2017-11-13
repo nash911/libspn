@@ -308,7 +308,7 @@ class Sum(OpNode):
             *[(t, v) for t, v in zip(max_counts_split, value_values)])  # Values
 
     def _compute_mpe_path(self, counts, weight_value, ivs_value, *value_values,
-                          add_random=None, use_unweighted=False):
+                          add_random=None, use_unweighted=False, probable=False):
         # Get weighted, IV selected values
         weight_value, ivs_value, values = self._compute_value_common(
             weight_value, ivs_value, *value_values)
@@ -318,7 +318,7 @@ class Sum(OpNode):
             values_weighted, counts, weight_value, ivs_value, *value_values)
 
     def _compute_log_mpe_path(self, counts, weight_value, ivs_value, *value_values,
-                              add_random=None, use_unweighted=False):
+                              add_random=None, use_unweighted=False, probable=False):
         # Get weighted, IV selected values
         weight_value, ivs_value, values = self._compute_value_common(
             weight_value, ivs_value, *value_values)
@@ -344,19 +344,16 @@ class Sum(OpNode):
         return self._compute_mpe_path_common(
             values_weighted, counts, weight_value, ivs_value, *value_values)
 
-    def _compute_probable_path(self, counts, weight_value, ivs_value, *value_values):
-        # TODO (Avinash): Currently not optimal since 'ivs_value' and ''*value_values'
-        # are accepted as parameters, although not used. Also, 'prob_counts' are
+    def _compute_probable_path_common(self, values_weighted, counts, weight_value,
+                                      ivs_value, *value_values):
+        # TODO (Avinash): Currently not optimal since 'prob_counts' are
         # scattered and returned for weights and ivs, but may not be needed.
 
-        # Get weighted, IV selected values
-        weight_value, ivs_value, values = self._compute_value_common(
-            weight_value, ivs_value, *value_values)
-
-        # Propagate the counts probabilistically, based on the weights value
-        prob_indices = tf.multinomial(tf.log(weight_value), num_samples=1)
-        prob_counts = tf.one_hot(tf.squeeze(prob_indices),
-                                 weight_value.get_shape()[1]) * counts
+        # Propagate counts probabilistically, based on the weighted inputs from children
+        prob_indices = tf.multinomial(values_weighted, num_samples=1)
+        prob_counts = utils.scatter_values(params=tf.squeeze(counts, axis=1),
+                                           indices=tf.squeeze(prob_indices, axis=1),
+                                           num_out_cols=values_weighted.shape[1].value)
         # Split the counts to value inputs
         _, _, *value_sizes = self.get_input_sizes(None, None, *value_values)
         prob_counts_split = utils.split_maybe(prob_counts, value_sizes, 1)
@@ -364,3 +361,41 @@ class Sum(OpNode):
             (prob_counts, weight_value),  # Weights
             (prob_counts, ivs_value),  # IVs
             *[(t, v) for t, v in zip(prob_counts_split, value_values)])  # Values
+
+    def _compute_probable_path(self, counts, weight_value, ivs_value, *value_values,
+                               add_random=None, use_unweighted=False):
+        # Get weighted, IV selected values
+        weight_value, ivs_value, values = self._compute_value_common(
+            weight_value, ivs_value, *value_values)
+        values_selected = values * ivs_value if self._ivs else values
+        values_weighted = values_selected * weight_value
+        values_weighted_log = tf.log(values_weighted)
+        return self._compute_probable_path_common(
+            values_weighted_log, counts, weight_value, ivs_value, *value_values)
+
+    def _compute_log_probable_path(self, counts, weight_value, ivs_value, *value_values,
+                                   add_random=None, use_unweighted=False):
+        # Get weighted, IV selected values
+        weight_value, ivs_value, values = self._compute_value_common(
+            weight_value, ivs_value, *value_values)
+        values_selected = values + ivs_value if self._ivs else values
+
+        # WARN USING UNWEIGHTED VALUE
+        if not use_unweighted or any(v.node.is_var for v in self._values):
+            values_weighted = values_selected + weight_value
+        else:
+            values_weighted = values_selected
+
+        # / USING UNWEIGHTED VALUE
+
+        # WARN ADDING RANDOM NUMBERS
+        if add_random is not None:
+            values_weighted = tf.add(values_weighted, tf.random_uniform(
+                shape=(tf.shape(values_weighted)[0],
+                       values_weighted.shape[1].value),
+                minval=0, maxval=add_random,
+                dtype=conf.dtype))
+        # /ADDING RANDOM NUMBERS
+
+        return self._compute_probable_path_common(
+            values_weighted, counts, weight_value, ivs_value, *value_values)

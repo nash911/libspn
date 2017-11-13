@@ -128,3 +128,6 @@ class Concat(OpNode):
 
     def _compute_probable_path(self, counts, *value_values):
         return self._compute_mpe_path(counts, *value_values)
+
+    def _compute_log_probable_path(self, counts, *value_values):
+        return self._compute_mpe_path(counts, *value_values)

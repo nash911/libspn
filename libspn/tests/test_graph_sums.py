@@ -1674,6 +1674,497 @@ class TestNodesSums(unittest.TestCase):
                               [0.]],
                              dtype=np.float32))
 
+    def test_compute_probable_path_noivs(self):
+        v12 = spn.IVs(num_vars=2, num_vals=4)
+        v34 = spn.ContVars(num_vars=2)
+        v5 = spn.ContVars(num_vars=1)
+        s = spn.Sums((v12, [0, 5]), (v34, [0, 1]), (v12, [3]), v5,
+                     (v12, [1, 6]), (v34, [1, 0]), (v12, [2]), v5,
+                     (v12, [2, 7]), (v34, [0, 1]), (v12, [1]), v5,
+                     num_sums=3)
+        w = s.generate_weights([0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.9995,
+                                0.0001, 0.0001, 0.0001, 0.9995, 0.0001, 0.0001,
+                                0.0001, 0.9995, 0.0001, 0.0001, 0.0001, 0.0001])
+        counts = tf.placeholder(tf.float32, shape=(None, 3))
+        op = s._compute_probable_path(tf.identity(counts), w.get_value(), None,
+                                      # Sum-1
+                                      v12.get_value(), v34.get_value(),
+                                      v12.get_value(), v5.get_value(),
+                                      # Sum-2
+                                      v12.get_value(), v34.get_value(),
+                                      v12.get_value(), v5.get_value(),
+                                      # Sum-3
+                                      v12.get_value(), v34.get_value(),
+                                      v12.get_value(), v5.get_value())
+        log_op = s._compute_log_probable_path(tf.identity(counts),
+                                              tf.log(w.get_value()),
+                                              None,
+                                              # Sum-1
+                                              tf.log(v12.get_value()),
+                                              tf.log(v34.get_value()),
+                                              tf.log(v12.get_value()),
+                                              tf.log(v5.get_value()),
+                                              # Sum-2
+                                              tf.log(v12.get_value()),
+                                              tf.log(v34.get_value()),
+                                              tf.log(v12.get_value()),
+                                              tf.log(v5.get_value()),
+                                              # Sum-3
+                                              tf.log(v12.get_value()),
+                                              tf.log(v34.get_value()),
+                                              tf.log(v12.get_value()),
+                                              tf.log(v5.get_value()))
+        init = w.initialize()
+        counts_feed = [[10, 20, 30],
+                       [11, 21, 31],
+                       [12, 22, 32],
+                       [13, 23, 33]]
+        v12_feed = [[-1, -1],
+                    [-1, -1],
+                    [-1, -1],
+                    [-1, -1]]
+        v34_feed = [[0.1, 0.2],
+                    [0.1, 0.2],
+                    [0.1, 0.2],
+                    [0.1, 0.2]]
+        v5_feed = [[0.5],
+                   [0.5],
+                   [0.5],
+                   [0.5]]
+
+        with tf.Session() as sess:
+            sess.run(init)
+            # Skip the IVs op
+            out, log_out = sess.run([op[2:], log_op[2:]],
+                                    feed_dict={counts: counts_feed,
+                                               v12: v12_feed,
+                                               v34: v34_feed,
+                                               v5: v5_feed})
+        # Sum-1
+        np.testing.assert_array_almost_equal(
+            out[0], np.array([[0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.]],
+                             dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            out[1], np.array([[0., 0.],
+                              [0., 0.],
+                              [0., 0.],
+                              [0., 0.]],
+                             dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            out[2], np.array([[0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.]],
+                             dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            out[3], np.array([[10.],
+                              [11.],
+                              [12.],
+                              [13.]],
+                             dtype=np.float32))
+
+        # Sum-2
+        np.testing.assert_array_almost_equal(
+            out[4], np.array([[0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.]],
+                             dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            out[5], np.array([[20., 0.],
+                              [21., 0.],
+                              [22., 0.],
+                              [23., 0.]],
+                             dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            out[6], np.array([[0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.]],
+                             dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            out[7], np.array([[0.],
+                              [0.],
+                              [0.],
+                              [0.]],
+                             dtype=np.float32))
+
+        # Sum-3
+        np.testing.assert_array_almost_equal(
+            out[8], np.array([[0., 0., 0., 0., 0., 0., 0., 30.],
+                              [0., 0., 0., 0., 0., 0., 0., 31.],
+                              [0., 0., 0., 0., 0., 0., 0., 32.],
+                              [0., 0., 0., 0., 0., 0., 0., 33.]],
+                             dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            out[9], np.array([[0., 0.],
+                              [0., 0.],
+                              [0., 0.],
+                              [0., 0.]],
+                             dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            out[10], np.array([[0., 0., 0., 0., 0., 0., 0., 0.],
+                               [0., 0., 0., 0., 0., 0., 0., 0.],
+                               [0., 0., 0., 0., 0., 0., 0., 0.],
+                               [0., 0., 0., 0., 0., 0., 0., 0.]],
+                              dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            out[11], np.array([[0.],
+                               [0.],
+                               [0.],
+                               [0.]],
+                              dtype=np.float32))
+
+        # Log Op Output
+        # Sum-1
+        np.testing.assert_array_almost_equal(
+            log_out[0], np.array([[0., 0., 0., 0., 0., 0., 0., 0.],
+                                  [0., 0., 0., 0., 0., 0., 0., 0.],
+                                  [0., 0., 0., 0., 0., 0., 0., 0.],
+                                  [0., 0., 0., 0., 0., 0., 0., 0.]],
+                                 dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            log_out[1], np.array([[0., 0.],
+                                  [0., 0.],
+                                  [0., 0.],
+                                  [0., 0.]],
+                                 dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            log_out[2], np.array([[0., 0., 0., 0., 0., 0., 0., 0.],
+                                  [0., 0., 0., 0., 0., 0., 0., 0.],
+                                  [0., 0., 0., 0., 0., 0., 0., 0.],
+                                  [0., 0., 0., 0., 0., 0., 0., 0.]],
+                                 dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            log_out[3], np.array([[10.],
+                                  [11.],
+                                  [12.],
+                                  [13.]],
+                                 dtype=np.float32))
+
+        # Sum-2
+        np.testing.assert_array_almost_equal(
+            log_out[4], np.array([[0., 0., 0., 0., 0., 0., 0., 0.],
+                                  [0., 0., 0., 0., 0., 0., 0., 0.],
+                                  [0., 0., 0., 0., 0., 0., 0., 0.],
+                                  [0., 0., 0., 0., 0., 0., 0., 0.]],
+                                 dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            log_out[5], np.array([[20., 0.],
+                                  [21., 0.],
+                                  [22., 0.],
+                                  [23., 0.]],
+                                 dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            log_out[6], np.array([[0., 0., 0., 0., 0., 0., 0., 0.],
+                                  [0., 0., 0., 0., 0., 0., 0., 0.],
+                                  [0., 0., 0., 0., 0., 0., 0., 0.],
+                                  [0., 0., 0., 0., 0., 0., 0., 0.]],
+                                 dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            log_out[7], np.array([[0.],
+                                  [0.],
+                                  [0.],
+                                  [0.]],
+                                 dtype=np.float32))
+
+        # Sum-3
+        np.testing.assert_array_almost_equal(
+            log_out[8], np.array([[0., 0., 0., 0., 0., 0., 0., 30.],
+                                  [0., 0., 0., 0., 0., 0., 0., 31.],
+                                  [0., 0., 0., 0., 0., 0., 0., 32.],
+                                  [0., 0., 0., 0., 0., 0., 0., 33.]],
+                                 dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            log_out[9], np.array([[0., 0.],
+                                  [0., 0.],
+                                  [0., 0.],
+                                  [0., 0.]],
+                                 dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            log_out[10], np.array([[0., 0., 0., 0., 0., 0., 0., 0.],
+                                   [0., 0., 0., 0., 0., 0., 0., 0.],
+                                   [0., 0., 0., 0., 0., 0., 0., 0.],
+                                   [0., 0., 0., 0., 0., 0., 0., 0.]],
+                                  dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            log_out[11], np.array([[0.],
+                                   [0.],
+                                   [0.],
+                                   [0.]],
+                                  dtype=np.float32))
+
+    def test_compute_probable_path_ivs(self):
+        v12 = spn.IVs(num_vars=2, num_vals=4)
+        v34 = spn.ContVars(num_vars=2)
+        v5 = spn.ContVars(num_vars=1)
+        s = spn.Sums((v12, [0, 5]), (v34, [0, 1]), (v12, [3]), v5,
+                     (v12, [1, 6]), (v34, [1, 0]), (v12, [2]), v5,
+                     (v12, [2, 7]), (v34, [0, 1]), (v12, [1]), v5,
+                     num_sums=3)
+        iv = s.generate_ivs()
+        w = s.generate_weights([0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.9995,
+                                0.0001, 0.0001, 0.0001, 0.9995, 0.0001, 0.0001,
+                                0.0001, 0.9995, 0.0001, 0.0001, 0.0001, 0.0001])
+        counts = tf.placeholder(tf.float32, shape=(None, 3))
+        op = s._compute_probable_path(tf.identity(counts), w.get_value(),
+                                      iv.get_value(),
+                                      # Sum-1
+                                      v12.get_value(), v34.get_value(),
+                                      v12.get_value(), v5.get_value(),
+                                      # Sum-2
+                                      v12.get_value(), v34.get_value(),
+                                      v12.get_value(), v5.get_value(),
+                                      # Sum-3
+                                      v12.get_value(), v34.get_value(),
+                                      v12.get_value(), v5.get_value())
+        log_op = s._compute_log_probable_path(tf.identity(counts),
+                                              tf.log(w.get_value()),
+                                              tf.log(iv.get_value()),
+                                              # Sum-1
+                                              tf.log(v12.get_value()),
+                                              tf.log(v34.get_value()),
+                                              tf.log(v12.get_value()),
+                                              tf.log(v5.get_value()),
+                                              # Sum-2
+                                              tf.log(v12.get_value()),
+                                              tf.log(v34.get_value()),
+                                              tf.log(v12.get_value()),
+                                              tf.log(v5.get_value()),
+                                              # Sum-3
+                                              tf.log(v12.get_value()),
+                                              tf.log(v34.get_value()),
+                                              tf.log(v12.get_value()),
+                                              tf.log(v5.get_value()))
+
+        init = w.initialize()
+        counts_feed = [[10, 20, 30],
+                       [11, 21, 31],
+                       [12, 22, 32],
+                       [13, 23, 33]]
+        v12_feed = [[-1, -1],
+                    [-1, -1],
+                    [-1, -1],
+                    [-1, -1]]
+        v34_feed = [[0.1, 0.2],
+                    [0.1, 0.2],
+                    [0.1, 0.2],
+                    [0.1, 0.2]]
+        v5_feed = [[0.5],
+                   [0.5],
+                   [0.5],
+                   [0.5]]
+
+        ivs_feed = [[0, 4, 4],
+                    [1, 5, 3],
+                    [2, -1, 2],
+                    [3, 5, 1]]
+
+        with tf.Session() as sess:
+            sess.run(init)
+            # Skip the IVs op
+            out, log_out = sess.run([op[2:], log_op[2:]],
+                                    feed_dict={counts: counts_feed,
+                                               iv: ivs_feed,
+                                               v12: v12_feed,
+                                               v34: v34_feed,
+                                               v5: v5_feed})
+
+        # Sum-1
+        np.testing.assert_array_almost_equal(
+            out[0], np.array([[10., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 11., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.]],
+                             dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            out[1], np.array([[0., 0.],
+                              [0., 0.],
+                              [12., 0.],
+                              [0., 13.]],
+                             dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            out[2], np.array([[0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.]],
+                             dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            out[3], np.array([[0.],
+                              [0.],
+                              [0.],
+                              [0.]],
+                             dtype=np.float32))
+
+        # Sum-2
+        np.testing.assert_array_almost_equal(
+            out[4], np.array([[0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.]],
+                             dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            out[5], np.array([[0., 0.],
+                              [0., 0.],
+                              [22., 0.],
+                              [0., 0.]],
+                             dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            out[6], np.array([[0., 0., 20., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.]],
+                             dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            out[7], np.array([[0.],
+                              [21.],
+                              [0.],
+                              [23.]],
+                             dtype=np.float32))
+
+        # Sum-3
+        np.testing.assert_array_almost_equal(
+            out[8], np.array([[0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 0.],
+                              [0., 0., 0., 0., 0., 0., 0., 33.]],
+                             dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            out[9], np.array([[0., 0.],
+                              [0., 31.],
+                              [32., 0.],
+                              [0., 0.]],
+                             dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            out[10], np.array([[0., 30., 0., 0., 0., 0., 0., 0.],
+                               [0., 0., 0., 0., 0., 0., 0., 0.],
+                               [0., 0., 0., 0., 0., 0., 0., 0.],
+                               [0., 0., 0., 0., 0., 0., 0., 0.]],
+                              dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            out[11], np.array([[0.],
+                               [0.],
+                               [0.],
+                               [0.]],
+                              dtype=np.float32))
+
+        # # Log Op Output
+        np.testing.assert_array_almost_equal(
+            log_out[0], np.array([[10., 0., 0., 0., 0., 0., 0., 0.],
+                                  [0., 0., 0., 0., 0., 11., 0., 0.],
+                                  [0., 0., 0., 0., 0., 0., 0., 0.],
+                                  [0., 0., 0., 0., 0., 0., 0., 0.]],
+                                 dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            log_out[1], np.array([[0., 0.],
+                                  [0., 0.],
+                                  [12., 0.],
+                                  [0., 13.]],
+                                 dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            log_out[2], np.array([[0., 0., 0., 0., 0., 0., 0., 0.],
+                                  [0., 0., 0., 0., 0., 0., 0., 0.],
+                                  [0., 0., 0., 0., 0., 0., 0., 0.],
+                                  [0., 0., 0., 0., 0., 0., 0., 0.]],
+                                 dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            log_out[3], np.array([[0.],
+                                  [0.],
+                                  [0.],
+                                  [0.]],
+                                 dtype=np.float32))
+
+        # Sum-2
+        np.testing.assert_array_almost_equal(
+            log_out[4], np.array([[0., 0., 0., 0., 0., 0., 0., 0.],
+                                  [0., 0., 0., 0., 0., 0., 0., 0.],
+                                  [0., 0., 0., 0., 0., 0., 0., 0.],
+                                  [0., 0., 0., 0., 0., 0., 0., 0.]],
+                                 dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            log_out[5], np.array([[0., 0.],
+                                  [0., 0.],
+                                  [22., 0.],
+                                  [0., 0.]],
+                                 dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            log_out[6], np.array([[0., 0., 20., 0., 0., 0., 0., 0.],
+                                  [0., 0., 0., 0., 0., 0., 0., 0.],
+                                  [0., 0., 0., 0., 0., 0., 0., 0.],
+                                  [0., 0., 0., 0., 0., 0., 0., 0.]],
+                                 dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            log_out[7], np.array([[0.],
+                                  [21.],
+                                  [0.],
+                                  [23.]],
+                                 dtype=np.float32))
+
+        # Sum-3
+        np.testing.assert_array_almost_equal(
+            log_out[8], np.array([[0., 0., 0., 0., 0., 0., 0., 0.],
+                                  [0., 0., 0., 0., 0., 0., 0., 0.],
+                                  [0., 0., 0., 0., 0., 0., 0., 0.],
+                                  [0., 0., 0., 0., 0., 0., 0., 33.]],
+                                 dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            log_out[9], np.array([[0., 0.],
+                                  [0., 31.],
+                                  [32., 0.],
+                                  [0., 0.]],
+                                 dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            log_out[10], np.array([[0., 30., 0., 0., 0., 0., 0., 0.],
+                                   [0., 0., 0., 0., 0., 0., 0., 0.],
+                                   [0., 0., 0., 0., 0., 0., 0., 0.],
+                                   [0., 0., 0., 0., 0., 0., 0., 0.]],
+                                  dtype=np.float32))
+
+        np.testing.assert_array_almost_equal(
+            log_out[11], np.array([[0.],
+                                   [0.],
+                                   [0.],
+                                   [0.]],
+                                  dtype=np.float32))
+
 
 if __name__ == '__main__':
     unittest.main()

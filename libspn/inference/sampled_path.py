@@ -12,9 +12,10 @@ from libspn.graph.algorithms import compute_graph_up_down
 
 
 class SampledPath:
-    """Assemble TF operations computing the branch counts based on weight-probability,
-    through a downward path of the SPN. It probabilistically chooses a branch to
-    travers through, based on the weight-value of each Sum node in the path.
+    """Assemble TF operations computing the branch counts based on weighted input
+    probability, through a downward path of the SPN. It probabilistically chooses
+    a branch to travers through, based on the weighted input value of each Sum
+    node in the path.
 
     Args:
         value (Value or LogValue): Pre-computed SPN values.
@@ -48,8 +49,8 @@ class SampledPath:
         return MappingProxyType(self._counts)
 
     def get_probable_path(self, root):
-        """Assemble TF operations computing the branch counts based on
-        weight-probabilities of the Sum nodes in the traversed path of the SPN
+        """Assemble TF operations computing the branch counts based on weighted
+        input probabilities of the Sum nodes in the traversed path of the SPN
         rooted in ``root``.
 
         Args:
@@ -65,9 +66,14 @@ class SampledPath:
             if node.is_op:
                 # Compute for inputs
                 with tf.name_scope(node.name):
-                    return node._compute_probable_path(
-                        summed, *[self._value.values[i.node] if i else None
-                                  for i in node.inputs])
+                    if self._log:
+                        return node._compute_log_probable_path(
+                            summed, *[self._value.values[i.node] if i else None
+                                      for i in node.inputs])
+                    else:
+                        return node._compute_probable_path(
+                            summed, *[self._value.values[i.node] if i else None
+                                      for i in node.inputs])
 
         # Generate values if not yet generated
         if not self._value.values:

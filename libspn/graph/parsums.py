@@ -436,26 +436,82 @@ class ParSums(OpNode):
         return self._compute_mpe_path_common(
             values_weighted, counts, weight_value, ivs_value, *value_values)
 
-    def _compute_probable_path(self, counts, weight_value, ivs_value, *value_values):
-        # TODO (Avinash): Currently not optimal since 'ivs_value' and ''*value_values'
-        # are accepted as parameters, although not used. Also, 'prob_counts' are
+    def _compute_probable_path_common(self, values_weighted, counts, weight_value,
+                                      ivs_value, *value_values):
+        # TODO (Avinash): Currently not optimal since 'prob_counts' are
         # scattered and returned for weights and ivs, but may not be needed.
 
-        # Get weighted, IV selected values
-        weight_value, ivs_value, values = self._compute_value_common(
-            weight_value, ivs_value, *value_values)
-
-        # Propagate the counts probabilistically, based on the weights value
-        prob_indices = tf.reshape(tf.multinomial(tf.log(weight_value), num_samples=1),
-                                  (1, -1))
-        prob_counts = tf.one_hot(prob_indices, weight_value.get_shape()[1]) * \
-            tf.reshape(counts, (-1, self._num_sums, 1))
+        # Propagate counts probabilistically, based on the weighted inputs from children
+        values_weighted_reshaped = tf.reshape(values_weighted,
+                                              (-1, values_weighted.shape[2].value))
+        prob_indices = tf.multinomial(values_weighted_reshaped, num_samples=1)
+        prob_indices_reshaped = tf.reshape(prob_indices, (-1, self._num_sums))
+        prob_counts = utils.scatter_values(params=counts, indices=prob_indices_reshaped,
+                                           num_out_cols=values_weighted.shape[2].value)
         # Sum up prob counts between individual sum nodes
         prob_counts_summed = tf.reduce_sum(prob_counts, 1)
-        # Split the counts to value inputs
+        # Split the summed counts to value inputs
         _, _, *value_sizes = self.get_input_sizes(None, None, *value_values)
-        prob_counts_split = utils.split_maybe(prob_counts_summed, value_sizes, 1)
+        prob_counts_split = tf.split(prob_counts_summed, value_sizes, 1)
         return self._scatter_to_input_tensors(
             (prob_counts, weight_value),  # Weights
             (prob_counts_summed, ivs_value),  # IVs
             *[(t, v) for t, v in zip(prob_counts_split, value_values)])  # Values
+
+    def _compute_probable_path(self, counts, weight_value, ivs_value, *value_values,
+                               add_random=None, use_unweighted=False):
+        # Get weighted, IV selected values
+        weight_value, ivs_value, values = self._compute_value_common(
+            weight_value, ivs_value, *value_values)
+        if self._ivs:
+            # IVs tensor shape = (Batch X (num_sums * num_vals))
+            # reshape it to (Batch X num_sums X num_feat)
+            reshape = (-1, self._num_sums, values.shape[1].value)
+            ivs_value = tf.reshape(ivs_value, shape=reshape)
+            values_weighted = tf.expand_dims(values, axis=1) * (ivs_value *
+                                                                weight_value)
+        else:
+            values_weighted = tf.expand_dims(values, axis=1) * weight_value
+        values_weighted_log = tf.log(values_weighted)
+        return self._compute_probable_path_common(
+             values_weighted_log, counts, weight_value, ivs_value, *value_values)
+
+    def _compute_log_probable_path(self, counts, weight_value, ivs_value,
+                                   *value_values, add_random=None,
+                                   use_unweighted=False):
+        # Get weighted, IV selected values
+        weight_value, ivs_value, values = self._compute_value_common(
+            weight_value, ivs_value, *value_values)
+        if self._ivs:
+            # IVs tensor shape = (Batch X (num_sums * num_vals))
+            # reshape it to (Batch X num_sums X num_feat)
+            reshape = (-1, self._num_sums, values.shape[1].value)
+            ivs_value = tf.reshape(ivs_value, shape=reshape)
+
+            # WARN USING UNWEIGHTED VALUE
+            if not use_unweighted or any(v.node.is_var for v in self._values):
+                values_weighted = tf.expand_dims(values, axis=1) + (ivs_value +
+                                                                    weight_value)
+            else:
+                # / USING UNWEIGHTED VALUE
+                values_weighted = tf.expand_dims(values, axis=1) + ivs_value
+        else:
+            # WARN USING UNWEIGHTED VALUE
+            if not use_unweighted or any(v.node.is_var for v in self._values):
+                values_weighted = tf.expand_dims(values, axis=1) + weight_value
+            else:
+                # / USING UNWEIGHTED VALUE
+                values_weighted = tf.tile(tf.expand_dims(values, axis=1),
+                                          [1, self._num_sums, 1])
+
+        # WARN ADDING RANDOM NUMBERS
+        if add_random is not None:
+            values_weighted = tf.add(values_weighted, tf.random_uniform(
+                shape=(tf.shape(values_weighted)[0], 1,
+                       values_weighted.shape[2].value),
+                minval=0, maxval=add_random,
+                dtype=conf.dtype))
+        # /ADDING RANDOM NUMBERS
+
+        return self._compute_probable_path_common(
+            values_weighted, counts, weight_value, ivs_value, *value_values)

@@ -437,3 +437,80 @@ class Sums(OpNode):
 
         return self._compute_mpe_path_common(
             values_weighted, counts, weight_value, ivs_value, *value_values)
+
+    def _compute_probable_path_common(self, values_weighted, counts, weight_value,
+                                      ivs_value, *value_values):
+        # TODO (Avinash): Currently not optimal since 'prob_counts' are
+        # scattered and returned for weights and ivs, but may not be needed.
+
+        # Propagate counts probabilistically, based on the weighted inputs from children
+        values_weighted_reshaped = tf.reshape(values_weighted,
+                                              (-1, values_weighted.shape[2].value))
+        prob_indices = tf.multinomial(values_weighted_reshaped, num_samples=1)
+        prob_indices_reshaped = tf.reshape(prob_indices, (-1, self._num_sums))
+        prob_counts = utils.scatter_values(params=counts, indices=prob_indices_reshaped,
+                                           num_out_cols=values_weighted.shape[2].value)
+        # Sum up prob counts between individual sum nodes
+        prob_counts_summed = tf.reduce_sum(prob_counts, 1)
+        _, _, *value_sizes = self.get_input_sizes(None, None, *value_values)
+        # Reshape max counts to a wide 2D tensor of shape 'Batch X (num_sums * num_vals)'
+        reshape = (-1, functools.reduce(operator.add, value_sizes, 0))
+        prob_counts_reshaped = tf.reshape(prob_counts, shape=reshape)
+        # Split the reshaped max counts to value inputs
+        prob_counts_split = tf.split(prob_counts_reshaped, value_sizes, 1)
+        return self._scatter_to_input_tensors(
+            (prob_counts, weight_value),  # Weights
+            (prob_counts_summed, ivs_value),  # IVs
+            *[(t, v) for t, v in zip(prob_counts_split, value_values)])  # Values
+
+    def _compute_probable_path(self, counts, weight_value, ivs_value, *value_values,
+                               add_random=None, use_unweighted=False):
+        # Get weighted, IV selected values
+        weight_tensor, ivs_tensor, values = self._compute_value_common(
+            weight_value, ivs_value, *value_values)
+        if self._ivs:
+            values_selected = values * ivs_tensor
+        else:
+            values_selected = values
+        # Shape of values_selected = (Batch X (num_sums * num_vals))
+        # reshape it to (Batch X num_sums X num_feat)
+        reshape = (-1, self._num_sums, int(values.shape[1].value / self._num_sums))
+        values_reshaped = tf.reshape(values_selected, shape=reshape)
+        values_weighted_log = tf.log(values_reshaped * weight_tensor)
+        return self._compute_probable_path_common(values_weighted_log, counts,
+                                                  weight_value, ivs_value,
+                                                  *value_values)
+
+    def _compute_log_probable_path(self, counts, weight_value, ivs_value,
+                                   *value_values, add_random=None,
+                                   use_unweighted=False):
+        # Get weighted, IV selected values
+        weight_value, ivs_value, values = self._compute_value_common(
+            weight_value, ivs_value, *value_values)
+        if self._ivs:
+            values_selected = values + ivs_value
+        else:
+            values_selected = values
+        # Shape of values_selected = (Batch X (num_sums * num_vals))
+        # reshape it to (Batch X num_sums X num_feat)
+        reshape = (-1, self._num_sums, int(values.shape[1].value / self._num_sums))
+        values_reshaped = tf.reshape(values_selected, shape=reshape)
+
+        # WARN USING UNWEIGHTED VALUE
+        if not use_unweighted or any(v.node.is_var for v in self._values):
+            values_weighted = values_reshaped + weight_value
+        else:
+            values_weighted = values_reshaped
+        # / USING UNWEIGHTED VALUE
+
+        # WARN ADDING RANDOM NUMBERS
+        if add_random is not None:
+            values_weighted = tf.add(values_weighted, tf.random_uniform(
+                shape=(tf.shape(values_weighted)[0], 1,
+                       values_weighted.shape[2].value),
+                minval=0, maxval=add_random,
+                dtype=conf.dtype))
+        # /ADDING RANDOM NUMBERS
+
+        return self._compute_probable_path_common(
+            values_weighted, counts, weight_value, ivs_value, *value_values)

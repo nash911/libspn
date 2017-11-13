@@ -763,6 +763,26 @@ class OpNode(Node):
             second dimension is the size of the output of the input node.
         """
 
+    @abstractmethod
+    def _compute_log_probable_path(self, counts, *input_values):
+        """Assemble TF operations computing the branch counts based on weight-probability
+        for each input of the node.
+
+        To be re-implemented in sub-classes.
+
+        Args:
+            counts (Tensor): Branch counts for each output value of this node.
+            *input_values (Tensor): For each input, a tensor containing the value
+                                    or log value produced by the input node. Can
+                                    be ``None`` if the input is not connected.
+
+        Returns:
+            list of Tensor: For each input, branch counts to pass to the node
+            connected to the input. Each tensor is of shape ``[None, out_size]``,
+            where the first dimension corresponds to the batch size and the
+            second dimension is the size of the output of the input node.
+        """
+
 
 class VarNode(Node):
     """An abstract class defining a variable node of the SPN graph.
