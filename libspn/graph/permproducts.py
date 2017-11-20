@@ -54,7 +54,7 @@ class PermProducts(OpNode):
         super().deserialize_inputs(data, nodes_by_name)
         self._values = tuple(Input(nodes_by_name[nn], i)
                              for nn, i in data['values'])
-        self.create_products()
+        # self.create_products()
 
     @property
     @utils.docinherit(OpNode)

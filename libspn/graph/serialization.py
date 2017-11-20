@@ -10,6 +10,7 @@
 from libspn.log import get_logger
 from libspn import utils
 from libspn.graph.algorithms import traverse_graph
+from libspn.graph.permproducts import PermProducts
 import tensorflow as tf
 
 logger = get_logger()
@@ -129,6 +130,11 @@ def deserialize_graph(data, load_param_vals=True, sess=None,
     for n, nd in zip(nodes, node_datas):
         if n.is_op:
             n.deserialize_inputs(nd, nodes_by_name)
+
+    # Creste products in all PermProducts Op nodes
+    for node in nodes:
+        if isinstance(node, PermProducts):
+            node.create_products()
 
     # Retrieve root
     root = nodes_by_name[data['root']]
