@@ -66,6 +66,10 @@ class PermProducts(OpNode):
         """list of Input: List of value inputs."""
         return self._values
 
+    @property
+    def num_inputs(self):
+        return self._num_inputs
+
     def set_values(self, *values):
         """Set the inputs providing input values to this node. If no arguments
         are given, all existing value inputs get disconnected.
