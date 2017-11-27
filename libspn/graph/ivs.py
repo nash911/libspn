@@ -98,11 +98,7 @@ class IVs(VarNode):
         r = tf.reshape(counts, (-1, self._num_vars, self._num_vals))
         return tf.argmax(r, dimension=2)
 
-    # def _compute_probable_state(self, counts):
-    #     counts = tf.reduce_sum(counts, axis=0, keep_dims=False)
-    #     r = tf.reshape(counts, (-1, self._num_vals))
-    #     return tf.reshape(tf.argmax(r, axis=1), (-1, self._num_vars))
-
     def _compute_probable_state(self, counts):
+        counts = tf.reduce_sum(counts, axis=0, keep_dims=False)
         r = tf.reshape(counts, (-1, self._num_vals))
-        return tf.reshape(tf.multinomial(tf.log(r), num_samples=1), (-1, self._num_vars))
+        return tf.reshape(tf.argmax(r, axis=1), (-1, self._num_vars))
