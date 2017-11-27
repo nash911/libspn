@@ -14,16 +14,18 @@ class SampledState():
 
     Args:
         sampled_path (SampledPath): Pre-computed Sampled_path.
+        value (Value or LogValue): Pre-computed SPN values.  Ignored if
+            ``sampled_path`` is given.
         value_inference_type (InferenceType): The inference type used during the
             upwards pass through the SPN. Ignored if ``sampled_path`` is given.
         log (bool): If ``True``, calculate the value in the log space. Ignored
-                    if ``sampled_path`` is given.
+            if ``sampled_path`` is given.
     """
 
-    def __init__(self, sampled_path=None, log=True, value_inference_type=None):
+    def __init__(self, sampled_path=None, value=None, log=True, value_inference_type=None):
         # Create internal Sampled path generator
         if sampled_path is None:
-            self._sampled_path = SampledPath(log=log,
+            self._sampled_path = SampledPath(log=log, value=value,
                                              value_inference_type=value_inference_type)
         else:
             self._sampled_path = sampled_path
