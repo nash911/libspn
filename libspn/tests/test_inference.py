@@ -213,7 +213,7 @@ class TestInference(TestCase):
         with tf.Session() as sess:
             init.run()
             out = sess.run(sampled_path_gen.counts[iv_x],
-                           feed_dict={iv_x: np.ones((5, 2))})
+                           feed_dict={iv_x: np.ones((5, 2)) * -1})
 
         true_ivs_counts = np.array([[0., 1., 1., 0.],
                                     [0., 1., 1., 0.],
@@ -226,27 +226,57 @@ class TestInference(TestCase):
 
     def test_probable_state(self):
         # Generate SPN
-        iv_x12 = spn.IVs(num_vars=2, num_vals=2, name="iv_x12")
-        iv_x34 = spn.IVs(num_vars=2, num_vals=2, name="iv_x34")
+        iv_x12 = spn.IVs(num_vars=2, num_vals=4, name="iv_x12")
+        iv_x34 = spn.IVs(num_vars=2, num_vals=4, name="iv_x34")
 
-        sum_11 = spn.Sum((iv_x12, [0, 1]), (iv_x34, [0, 1]), name="sum_11")
-        sum_11.generate_weights([0.001, 0.001, 0.001, 0.997])
+        # Sub-SPN 1
+        sum_11 = spn.Sum((iv_x12, [0, 1, 2, 3]), (iv_x34, [0, 1, 2, 3]), name="sum_11")
+        sum_11.generate_weights([0.001, 0.001, 0.001, 0.001,
+                                 0.001, 0.001,  0.993, 0.001])
 
-        sum_12 = spn.Sum((iv_x12, [0, 1]), (iv_x34, [0, 1]), name="sum_12")
-        sum_12.generate_weights([0.25, 0.25, 0.25, 0.25])
+        sum_12 = spn.Sum((iv_x12, [0, 1, 2, 3]), (iv_x34, [0, 1, 2, 3]), name="sum_12")
+        sum_12.generate_weights([0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25])
 
-        sum_21 = spn.Sum((iv_x12, [2, 3]), (iv_x34, [2, 3]), name="sum_21")
-        sum_21.generate_weights([0.25, 0.25, 0.25, 0.25])
+        sum_21 = spn.Sum((iv_x12, [4, 5, 6, 7]), (iv_x34, [4, 5, 6, 7]), name="sum_21")
+        sum_21.generate_weights([0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25])
 
-        sum_22 = spn.Sum((iv_x12, [2, 3]), (iv_x34, [2, 3]), name="sum_22")
-        sum_22.generate_weights([0.997, 0.001, 0.001, 0.001])
+        sum_22 = spn.Sum((iv_x12, [4, 5, 6, 7]), (iv_x34, [4, 5, 6, 7]), name="sum_22")
+        sum_22.generate_weights([0.993, 0.001, 0.001, 0.001,
+                                 0.001, 0.001, 0.001, 0.001])
 
         prod_1 = spn.Product(sum_11, sum_21, name="prod_1")
         prod_2 = spn.Product(sum_11, sum_22, name="prod_2")
         prod_3 = spn.Product(sum_12, sum_22, name="prod_3")
 
-        root = spn.Sum(prod_1, prod_2, prod_3, name="root")
-        root.generate_weights([0.001, 0.998, 0.001])
+        sub_spn_1 = spn.Sum(prod_1, prod_2, prod_3, name="sub_spn_1")
+        sub_spn_1.generate_weights([0.001, 0.998, 0.001])
+
+        # Sub-SPN 2
+        sum_31 = spn.Sum((iv_x12, [0, 1, 2, 3]), (iv_x12, [4, 5, 6, 7]), name="sum_31")
+        sum_31.generate_weights([0.001, 0.993, 0.001, 0.001,
+                                 0.001, 0.001, 0.001, 0.001])
+
+        sum_32 = spn.Sum((iv_x12, [0, 1, 2, 3]), (iv_x12, [4, 5, 6, 7]), name="sum_32")
+        sum_32.generate_weights([0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25])
+
+        sum_41 = spn.Sum((iv_x34, [0, 1, 2, 3]), (iv_x34, [4, 5, 6, 7]), name="sum_41")
+        sum_41.generate_weights([0.001, 0.001, 0.001, 0.001,
+                                 0.001, 0.001, 0.001, 0.993])
+
+        sum_42 = spn.Sum((iv_x34, [0, 1, 2, 3]), (iv_x34, [4, 5, 6, 7]), name="sum_42")
+        sum_42.generate_weights([0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25])
+
+        prod_4 = spn.Product(sum_31, sum_41, name="prod_4")
+        prod_5 = spn.Product(sum_31, sum_42, name="prod_5")
+        prod_6 = spn.Product(sum_32, sum_42, name="prod_6")
+
+        sub_spn_2 = spn.Sum(prod_4, prod_5, prod_6, name="sub_spn_2")
+        sub_spn_2.generate_weights([0.998, 0.001, 0.001])
+
+        # Root
+        root = spn.Sum(sub_spn_1, sub_spn_2, name="root")
+        root.generate_weights([0.5, 0.5])
+        ivs = root.generate_ivs()
 
         # Add ops
         init = spn.initialize_weights(root)
@@ -257,22 +287,17 @@ class TestInference(TestCase):
         # Run
         with tf.Session() as sess:
             init.run()
-            out = sess.run([iv_x12_state, iv_x34_state],
-                           feed_dict={iv_x12: np.ones((100, 2)) * 1,
-                                      iv_x34: np.ones((100, 2)) * 1})
+            for i in range(50):
+                out = sess.run([iv_x12_state, iv_x34_state],
+                               feed_dict={iv_x12: np.ones((2, 2)) * -1,
+                                          iv_x34: np.ones((2, 2)) * -1,
+                                          ivs: [[0], [1]]})
 
-        np.testing.assert_array_equal(out[0][0][1], [0])
-        np.testing.assert_array_equal(out[1][0][0], [1])
+                np.testing.assert_array_equal(out[0][0][1], [0])
+                np.testing.assert_array_equal(out[1][0][0], [2])
 
-        sampled_path_gen = spn.SampledPath(value_inference_type=spn.InferenceType.MPE,
-                                           log=False)
-        sampled_path_gen.get_probable_path(root)
-        # Run
-        with tf.Session() as sess:
-            init.run()
-            out = sess.run([sampled_path_gen.counts[iv_x12], sampled_path_gen.counts[iv_x34]],
-                           feed_dict={iv_x12: [[-1, -1]],
-                                      iv_x34: [[-1, -1]]})
+                np.testing.assert_array_equal(out[0][0][0], [1])
+                np.testing.assert_array_equal(out[1][0][1], [3])
 
 
 if __name__ == '__main__':
