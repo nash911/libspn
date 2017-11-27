@@ -260,7 +260,8 @@ def scatter_values(params, indices, num_out_cols, name=None):
         elif indices_dims == 2:
             indices_size = indices_shape[1].value
         if indices_size != param_size:
-            raise ValueError("Sizes of 'indices' and 'params' must be the same")
+            raise ValueError("Sizes of 'indices': %s and 'params': %s must be the same"
+                             % (indices_size,  param_size))
         # TODO: Need a way for tensor bound-checking that 0 <= indices < num_out_cols
         # if np.any((indices < 0) | (indices >= num_out_cols)):
         #     raise ValueError("'indices' must be smaller than 'num_out_cols'")
