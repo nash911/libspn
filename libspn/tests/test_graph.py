@@ -284,6 +284,18 @@ class TestGraph(TestCase):
         num = s6.get_num_nodes(skip_params=False)
         self.assertEqual(num, 15)
 
+        # Count specific node-types
+        num = s6.get_num_nodes(skip_params=False, node_type=spn.Sum)
+        self.assertEqual(num, 6)
+        num = s5.get_num_nodes(skip_params=True, node_type=spn.ContVars)
+        self.assertEqual(num, 3)
+        num = s6.get_num_nodes(node_type=spn.IVs)
+        self.assertEqual(num, 0)
+        num = s6.get_num_nodes(skip_params=False, node_type=spn.Weights)
+        self.assertEqual(num, 6)
+        num = s6.get_num_nodes(skip_params=True, node_type=spn.Weights)
+        self.assertEqual(num, 0)
+
     def test_get_out_size(self):
         """Computing the sizes of the outputs of nodes in SPN graph"""
         # Generate graph
