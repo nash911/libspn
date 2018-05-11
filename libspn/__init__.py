@@ -50,6 +50,7 @@ from libspn.inference.value import Value
 from libspn.inference.value import LogValue
 from libspn.inference.mpe_path import MPEPath
 from libspn.inference.mpe_state import MPEState
+from libspn.inference.gradient import Gradient
 from libspn.learning.em import EMLearning
 from libspn.learning.gd import GDLearning
 from libspn.learning.type import LearningType
@@ -123,7 +124,7 @@ __all__ = [
     'DenseSPNGenerator', 'DenseSPNGeneratorMultiNodes',
     'DenseSPNGeneratorLayerNodes', 'WeightsGenerator', 'generate_weights',
     # Inference and learning
-    'InferenceType', 'Value', 'LogValue', 'MPEPath', 'MPEState',
+    'InferenceType', 'Value', 'LogValue', 'MPEPath', 'Gradient', 'MPEState',
     'EMLearning', 'GDLearning', 'LearningType', 'LearningInferenceType',
     # Data
     'Dataset', 'FileDataset', 'CSVFileDataset', 'GaussianMixtureDataset',
