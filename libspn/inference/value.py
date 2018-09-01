@@ -25,12 +25,10 @@ class Value:
             MPE inference will be used for all nodes.
     """
 
-    def __init__(self, inference_type=None, dropconnect_keep_prob=None, dropout_keep_prob=None,
-                 name="Value"):
+    def __init__(self, inference_type=None, dropconnect_keep_prob=None, name="Value"):
         self._inference_type = inference_type
         self._values = {}
         self._dropconnect_keep_prob = dropconnect_keep_prob
-        self._dropout_keep_prob = dropout_keep_prob
         self._name = name
 
     @property
@@ -58,9 +56,7 @@ class Value:
         """
         def fun(node, *args):
             if self._dropconnect_keep_prob and isinstance(node, BaseSum):
-                kwargs = dict(
-                    dropconnect_keep_prob=self._dropconnect_keep_prob,
-                    dropout_keep_prob=self._dropout_keep_prob)
+                kwargs = dict(dropconnect_keep_prob=self._dropconnect_keep_prob)
             else:
                 kwargs = dict()
             with tf.name_scope(node.name):
@@ -90,12 +86,10 @@ class LogValue:
             MPE inference will be used for all nodes.
     """
 
-    def __init__(self, inference_type=None, dropout_keep_prob=None, dropconnect_keep_prob=None,
-                 name="LogValue"):
+    def __init__(self, inference_type=None, dropconnect_keep_prob=None, name="LogValue"):
         self._inference_type = inference_type
         self._values = {}
         self._dropconnect_keep_prob = dropconnect_keep_prob
-        self._dropout_keep_prob = dropout_keep_prob
         self._name = name
 
     @property
@@ -107,7 +101,7 @@ class LogValue:
     def log(self):
         return True
 
-    def get_value(self, root, with_ivs=True):
+    def get_value(self, root):
         """Assemble TF operations computing the log values of nodes of the SPN
         rooted in ``root``.
 
@@ -125,23 +119,16 @@ class LogValue:
         def fun(node, *args):
             if self._dropconnect_keep_prob and isinstance(node, BaseSum):
                 kwargs = dict(
-                    dropconnect_keep_prob=self._dropconnect_keep_prob,
-                    dropout_keep_prob=self._dropout_keep_prob)
+                    dropconnect_keep_prob=self._dropconnect_keep_prob)
             else:
                 kwargs = dict()
             with tf.name_scope(node.name):
                 if (self._inference_type == InferenceType.MARGINAL
                     or (self._inference_type is None and
                         node.inference_type == InferenceType.MARGINAL)):
-                    if node.is_op:
-                        return node._compute_log_value(*args, with_ivs=with_ivs)
-                    else:
-                        return node._compute_log_value(*args)
+                    return node._compute_log_value(*args, **kwargs)
                 else:
-                    if node.is_op:
-                        return node._compute_log_mpe_value(*args, with_ivs=with_ivs)
-                    else:
-                        return node._compute_log_mpe_value(*args)
+                    return node._compute_log_mpe_value(*args, **kwargs)
 
         self._values = {}
         with tf.name_scope(self._name):

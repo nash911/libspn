@@ -28,7 +28,7 @@ class MPEPath:
 
     def __init__(self, value=None, value_inference_type=None, log=True, add_random=None,
                  use_unweighted=False, sample=False, sample_prob=None,
-                 dropconnect_keep_prob=None, dropout_keep_prob=None):
+                 dropconnect_keep_prob=None):
         self._true_counts = {}
         self._actual_counts = {}
         self._log = log
@@ -40,12 +40,10 @@ class MPEPath:
         if value is None:
             if log:
                 self._value = LogValue(
-                    value_inference_type, dropconnect_keep_prob=dropconnect_keep_prob,
-                    dropout_keep_prob=dropout_keep_prob)
+                    value_inference_type, dropconnect_keep_prob=dropconnect_keep_prob)
             else:
                 self._value = Value(
-                    value_inference_type, dropconnect_keep_prob=dropconnect_keep_prob,
-                    dropout_keep_prob=dropout_keep_prob)
+                    value_inference_type, dropconnect_keep_prob=dropconnect_keep_prob)
         else:
             self._value = value
             self._log = value.log()
@@ -90,7 +88,7 @@ class MPEPath:
             self._true_counts[node] = summed
             basesum_kwargs = dict(
                 add_random=self._add_random, use_unweighted=self._use_unweighted,
-                with_ivs=True, sample=self._sample, sample_prob=self._sample_prob)
+                sample=self._sample, sample_prob=self._sample_prob)
             if node.is_op:
                 kwargs = basesum_kwargs if isinstance(node, BaseSum) else dict()
                 # Compute for inputs
@@ -133,7 +131,7 @@ class MPEPath:
             self._actual_counts[node] = summed
             basesum_kwargs = dict(
                 add_random=self._add_random, use_unweighted=self._use_unweighted,
-                with_ivs=False, sample=self._sample, sample_prob=self._sample_prob)
+                sample=self._sample, sample_prob=self._sample_prob)
             if node.is_op:
                 # Compute for inputs
                 kwargs = basesum_kwargs if isinstance(node, BaseSum) else dict()
