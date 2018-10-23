@@ -296,6 +296,95 @@ class TestGraph(TestCase):
         num = s6.get_num_nodes(skip_params=True, node_type=spn.Weights)
         self.assertEqual(num, 0)
 
+    def test_get_depth(self):
+        """Computing the depth of nodes in the SPN graph"""
+        # Generate graph
+        v12 = spn.IVs(num_vars=2, num_vals=4, name="V12")
+        v34 = spn.ContVars(num_vars=2, name="V34")
+        s1 = spn.Sum((v12, [0, 1, 2, 3]), name="S1")
+        s2 = spn.Sum((v12, [4, 5, 6, 7]), name="S2")
+        p1 = spn.Product((v12, [0, 7]), name="P1")
+        p2 = spn.Product((v12, [3, 4]), name="P2")
+        p3 = spn.Product(v34, name="P3")
+        n1 = spn.Concat(s1, s2, p3, name="N1")
+        n2 = spn.Concat(p1, p2, name="N2")
+        p4 = spn.Product((n1, [0]), (n1, [1]), name="P4")
+        p5 = spn.Product((n2, [0]), (n1, [2]), name="P5")
+        s3 = spn.Sum(p4, n2, name="S3")
+        p6 = spn.Product(s3, (n1, [2]), name="P6")
+        root = spn.Sum(p5, p6, name="root")
+
+        # Test
+        num = v12.get_depth(skip_params_vars=True)
+        self.assertEqual(num, 1)
+        num = v12.get_depth(skip_params_vars=False)
+        self.assertEqual(num, 1)
+
+        num = v34.get_depth(skip_params_vars=True)
+        self.assertEqual(num, 1)
+        num = v34.get_depth(skip_params_vars=False)
+        self.assertEqual(num, 1)
+
+        num = s1.get_depth(skip_params_vars=True)
+        self.assertEqual(num, 1)
+        num = s1.get_depth(skip_params_vars=False)
+        self.assertEqual(num, 2)
+
+        num = s2.get_depth(skip_params_vars=True)
+        self.assertEqual(num, 1)
+        num = s2.get_depth(skip_params_vars=False)
+        self.assertEqual(num, 2)
+
+        num = p1.get_depth(skip_params_vars=True)
+        self.assertEqual(num, 1)
+        num = p1.get_depth(skip_params_vars=False)
+        self.assertEqual(num, 2)
+
+        num = p2.get_depth(skip_params_vars=True)
+        self.assertEqual(num, 1)
+        num = p2.get_depth(skip_params_vars=False)
+        self.assertEqual(num, 2)
+
+        num = p3.get_depth(skip_params_vars=True)
+        self.assertEqual(num, 1)
+        num = p3.get_depth(skip_params_vars=False)
+        self.assertEqual(num, 2)
+
+        num = n1.get_depth(skip_params_vars=True)
+        self.assertEqual(num, 2)
+        num = n1.get_depth(skip_params_vars=False)
+        self.assertEqual(num, 3)
+
+        num = n2.get_depth(skip_params_vars=True)
+        self.assertEqual(num, 2)
+        num = n2.get_depth(skip_params_vars=False)
+        self.assertEqual(num, 3)
+
+        num = p4.get_depth(skip_params_vars=True)
+        self.assertEqual(num, 3)
+        num = p4.get_depth(skip_params_vars=False)
+        self.assertEqual(num, 4)
+
+        num = p5.get_depth(skip_params_vars=True)
+        self.assertEqual(num, 3)
+        num = p5.get_depth(skip_params_vars=False)
+        self.assertEqual(num, 4)
+
+        num = s3.get_depth(skip_params_vars=True)
+        self.assertEqual(num, 4)
+        num = s3.get_depth(skip_params_vars=False)
+        self.assertEqual(num, 5)
+
+        num = p6.get_depth(skip_params_vars=True)
+        self.assertEqual(num, 5)
+        num = p6.get_depth(skip_params_vars=False)
+        self.assertEqual(num, 6)
+
+        num = root.get_depth(skip_params_vars=True)
+        self.assertEqual(num, 6)
+        num = root.get_depth(skip_params_vars=False)
+        self.assertEqual(num, 7)
+
     def test_get_out_size(self):
         """Computing the sizes of the outputs of nodes in SPN graph"""
         # Generate graph

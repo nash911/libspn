@@ -11,6 +11,7 @@ from libspn import utils
 from libspn.inference.type import InferenceType
 from libspn.exceptions import StructureError
 from libspn.graph.algorithms import compute_graph_up, traverse_graph
+from collections import deque, defaultdict
 
 
 class GraphData():
@@ -297,6 +298,62 @@ class Node(ABC):
         traverse_graph(self, fun=lambda node: c.inc(node),
                        skip_params=skip_params)
         return c.val
+
+    def get_depth(self, skip_params_vars=True):
+        """Get depth of the SPN rooted in this node.
+
+        Args:
+            skip_params_vars (bool): If ``True`` don't count param and var nodes.
+
+        Returns:
+            int: Depth of the SPN.
+        """
+        parents = defaultdict(list)
+        depths = {}
+
+        def get_parents(node):
+            # Add to Parents dict
+            if node.is_op:
+                for i in node.inputs:
+                    if (i and  # Input not empty
+                            not (skip_params_vars and (i.is_param or i.is_var))):
+                        parents[i.node].append(node)
+
+        # Create a parents dictionary
+        traverse_graph(self, fun=get_parents, skip_params=skip_params_vars)
+
+        stack = deque()  # Stack of nodes to process
+        stack.append(self)
+        processed = []  # List of processed nodes
+
+        while stack:
+            next_node = stack[-1]
+            if next_node not in processed:
+                try:
+                    if next_node is self:
+                        depths[next_node] = 1
+                    else:
+                        # Save depth of the node as one more than that of it's
+                        # parent's with the greatest depth
+                        depths[next_node] = max([depths[p] for p in
+                                                 parents[next_node]]) + 1
+
+                    # Add current node's children to stack, to be processed
+                    if next_node.is_op:
+                        for inp in next_node.inputs:
+                            if (inp and  # Input not empty
+                                    not (skip_params_vars and (inp.is_param or
+                                                               inp.is_var))):
+                                if inp.node not in stack:
+                                    stack.appendleft(inp.node)
+                    processed.append(stack.pop())
+                except KeyError:  # Not all parent nodes are processed yet
+                    # Push the node back to the (left) end of the stack
+                    stack.appendleft(stack.pop())
+
+        # Depth of the SPN rooted in this node would be the depth of the node's
+        # progeny with the largest depth value.
+        return max(depths.values())
 
     def get_out_size(self):
         """Get the size of the output of this node.  The size might depend on
